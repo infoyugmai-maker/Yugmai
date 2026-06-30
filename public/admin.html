@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | YUGM AI</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="logo.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container header-inner">
+                <a class="brand" href="index.html" aria-label="YUGM AI home">
+                    <img src="logo.png" alt="YUGM AI logo">
+                </a>
+                <nav class="primary-nav" aria-label="Primary navigation">
+                    <a href="admin.html">Dashboard</a>
+                    <a href="portal.html">Portal</a>
+                    <a href="contact.html">Contact</a>
+                </nav>
+                <div class="nav-actions">
+                    <span class="portal-user-name" data-user-name></span>
+                    <button class="btn btn-ghost" data-logout-btn type="button">Logout</button>
+                    <button class="mobile-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+                        <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="page-main">
+            <section class="section">
+                <div class="container">
+                    <div class="portal-welcome" data-reveal>
+                        <p class="section-eyebrow">Admin Panel</p>
+                        <h1 class="section-title">YUGM AI Dashboard</h1>
+                    </div>
+
+                    <div class="portal-tabs" data-admin-tabs>
+                        <button class="portal-tab active" data-tab="overview">Overview</button>
+                        <button class="portal-tab" data-tab="projects">Projects</button>
+                        <button class="portal-tab" data-tab="participation">Participation</button>
+                        <button class="portal-tab" data-tab="work">Work Tracking</button>
+                        <button class="portal-tab" data-tab="registrations">Registrations</button>
+                        <button class="portal-tab" data-tab="messages">Messages</button>
+                        <button class="portal-tab" data-tab="contacts">Contacts</button>
+                        <button class="portal-tab" data-tab="logs">Sign-in Logs</button>
+                        <button class="portal-tab" data-tab="announce">Announcements</button>
+                        <button class="portal-tab" data-tab="payments">Payments & Invoicing</button>
+                    </div>
+
+                    <!-- Overview -->
+                    <div class="portal-panel" data-panel="overview">
+                        <div class="stat-grid" data-admin-stats>
+                            <p class="section-copy">Loading metrics...</p>
+                        </div>
+                    </div>
+
+                    <!-- Projects management -->
+                    <div class="portal-panel hidden" data-panel="projects">
+                        <div class="admin-toolbar">
+                            <input class="admin-search" type="search" placeholder="Search projects by name" data-project-search>
+                            <button class="btn btn-primary" data-add-project>Add Project</button>
+                        </div>
+                        <div data-admin-projects></div>
+                    </div>
+
+                    <!-- Participation -->
+                    <div class="portal-panel hidden" data-panel="participation">
+                        <div class="admin-toolbar">
+                            <select class="admin-search" data-participation-filter>
+                                <option value="all">All statuses</option>
+                                <option value="interested">Interested</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div data-admin-participation></div>
+                    </div>
+
+                    <!-- Work Tracking -->
+                    <div class="portal-panel hidden" data-panel="work">
+                        <div class="admin-toolbar">
+                            <select class="admin-search" data-work-filter>
+                                <option value="all">All statuses</option>
+                                <option value="pending-review">Pending Review</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="revision-needed">Revision Needed</option>
+                            </select>
+                        </div>
+                        <div data-admin-submissions></div>
+                    </div>
+
+                    <!-- Registrations -->
+                    <div class="portal-panel hidden" data-panel="registrations">
+                        <div class="admin-toolbar">
+                            <input class="admin-search" type="search" placeholder="Search by name or email" data-user-search>
+                            <select class="admin-search" data-user-filter>
+                                <option value="all">All account types</option>
+                                <option value="freelancer">Freelancer</option>
+                                <option value="vendor">Vendor</option>
+                                <option value="company">Company</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div data-admin-users></div>
+                    </div>
+
+                    <!-- Messages -->
+                    <div class="portal-panel hidden" data-panel="messages">
+                        <div data-admin-messages></div>
+                    </div>
+
+                    <!-- Contacts -->
+                    <div class="portal-panel hidden" data-panel="contacts">
+                        <div data-admin-contacts></div>
+                    </div>
+
+                    <!-- Sign-in Logs -->
+                    <div class="portal-panel hidden" data-panel="logs">
+                        <div class="admin-toolbar">
+                            <input class="admin-search" type="search" placeholder="Search by name or email" data-log-search>
+                        </div>
+                        <div data-admin-logs></div>
+                    </div>
+
+                    <!-- Announcements -->
+                    <div class="portal-panel hidden" data-panel="announce">
+                        <div class="announce-layout">
+                            <form class="auth-form announce-form" data-announce-form>
+                                <h3>Send a notification</h3>
+                                <div class="field">
+                                    <label for="a-title">Title (max 60)</label>
+                                    <input id="a-title" maxlength="60" placeholder="New Project Live" required>
+                                </div>
+                                <div class="field">
+                                    <label for="a-body">Message (max 120)</label>
+                                    <textarea id="a-body" rows="3" maxlength="120" placeholder="A new transcription project is now open." required></textarea>
+                                </div>
+                                <div class="field">
+                                    <label for="a-link">Link on click (optional)</label>
+                                    <input id="a-link" type="url" placeholder="portal.html">
+                                </div>
+                                <div class="field">
+                                    <label for="a-audience">Audience</label>
+                                    <select id="a-audience">
+                                        <option value="all">All Users</option>
+                                        <option value="freelancer">Freelancers</option>
+                                        <option value="vendor">Vendors</option>
+                                        <option value="company">Companies</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" type="submit">Send Notification</button>
+                                <p class="auth-status" data-announce-status aria-live="polite"></p>
+                            </form>
+                            <div class="announce-log">
+                                <h3>Sent notifications</h3>
+                                <div data-announce-list></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payments & Invoicing -->
+                    <div class="portal-panel hidden" data-panel="payments">
+                        <div class="admin-toolbar">
+                            <select class="admin-search" data-payment-filter>
+                                <option value="all">All Statuses</option>
+                                <option value="pending_request">Ready for Request</option>
+                                <option value="requested">Invoice Requested</option>
+                                <option value="submitted">Invoice Submitted</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+                        <div data-admin-payments></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <div class="container footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.png" alt="YUGM AI">
+                    <p>&copy; 2026 YUGM AI. All rights reserved.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="index.html">Home</a>
+                    <a href="contact.html">Contact</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Project edit modal -->
+    <div class="modal-overlay" data-edit-modal hidden>
+        <div class="modal-card modal-wide" role="dialog" aria-modal="true">
+            <button class="modal-close" type="button" data-modal-close aria-label="Close">
+                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
+            </button>
+            <div data-modal-body></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/script.js" defer></script>
+    <script src="js/admin.js" defer></script>
+</body>
+</html>

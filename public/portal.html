@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal | YUGM AI</title>
+    <meta name="description" content="YUGM AI contributor portal - view projects, track progress, submit work, and manage payouts.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="logo.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container header-inner">
+                <a class="brand" href="index.html" aria-label="YUGM AI home">
+                    <img src="logo.png" alt="YUGM AI logo">
+                </a>
+                <nav class="primary-nav" aria-label="Primary navigation">
+                    <a href="index.html">Home</a>
+                    <a href="portal.html">My Projects</a>
+                    <a href="contact.html">Contact</a>
+                </nav>
+                <div class="nav-actions">
+                    <span class="portal-user-name" data-user-name></span>
+                    <button class="btn btn-ghost" data-logout-btn type="button">Logout</button>
+                    <button class="mobile-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+                        <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="page-main">
+            <section class="section portal-header-section">
+                <div class="container">
+                    <div class="portal-welcome" data-reveal>
+                        <p class="section-eyebrow">Portal</p>
+                        <h1 class="section-title" data-welcome-title>Welcome back</h1>
+                        <p class="section-copy">Browse available projects, track your submissions, and manage payouts.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="container">
+                    <div class="portal-tabs" data-portal-tabs>
+                        <button class="portal-tab active" data-tab="overview">Overview</button>
+                        <button class="portal-tab" data-tab="projects">Available Projects</button>
+                        <button class="portal-tab" data-tab="mywork">My Work</button>
+                        <button class="portal-tab" data-tab="submit">Submit Work</button>
+                        <button class="portal-tab" data-tab="payments">Payments & Docs</button>
+                        <button class="portal-tab" data-tab="messages">Messages</button>
+                        <button class="portal-tab" data-tab="profile">Profile</button>
+                    </div>
+
+                    <!-- Overview -->
+                    <div class="portal-panel" data-panel="overview">
+                        <div class="stat-grid" data-portal-stats>
+                            <p class="section-copy">Loading your overview...</p>
+                        </div>
+                        <h3 class="portal-subhead">Recent Projects</h3>
+                        <div class="card-grid" data-portal-recent>
+                            <p class="section-copy">Loading...</p>
+                        </div>
+                    </div>
+
+                    <!-- Available Projects -->
+                    <div class="portal-panel hidden" data-panel="projects">
+                        <div class="card-grid" data-portal-projects>
+                            <p class="section-copy">Loading projects...</p>
+                        </div>
+                    </div>
+
+                    <!-- My Work (4-step flow per project) -->
+                    <div class="portal-panel hidden" data-panel="mywork">
+                        <div data-my-projects>
+                            <p class="section-copy">Loading your work...</p>
+                        </div>
+                    </div>
+
+                    <!-- Submit Work -->
+                    <div class="portal-panel hidden" data-panel="submit">
+                        <form class="auth-form submit-work-form" data-submitwork-form>
+                            <h3>Log a work session</h3>
+                            <div class="field">
+                                <label for="sw-label">Session Label</label>
+                                <input id="sw-label" value="New Session" required>
+                            </div>
+                            <div class="field-grid">
+                                <div class="field">
+                                    <label for="sw-project">Project</label>
+                                    <select id="sw-project" required><option value="">Select a joined project</option></select>
+                                </div>
+                                <div class="field">
+                                    <label for="sw-type">Work Type</label>
+                                    <select id="sw-type">
+                                        <option>Recording</option>
+                                        <option>Annotation</option>
+                                        <option>Transcription</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field-grid">
+                                <div class="field">
+                                    <label for="sw-hours">Hours Completed</label>
+                                    <input id="sw-hours" type="number" min="0" step="0.5" required>
+                                </div>
+                                <div class="field">
+                                    <label for="sw-link">Work Done Link</label>
+                                    <input id="sw-link" type="url" placeholder="https://drive.google.com/..." required>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="sw-notes">Notes (optional)</label>
+                                <textarea id="sw-notes" rows="3"></textarea>
+                            </div>
+                            <button class="btn btn-primary" type="submit">Submit for Review</button>
+                            <p class="auth-status" data-submitwork-status aria-live="polite"></p>
+                        </form>
+                        <h3 class="portal-subhead">Previous Submissions</h3>
+                        <div data-submitwork-history><p class="section-copy">Loading...</p></div>
+                    </div>
+
+                    <!-- Payments & Docs -->
+                    <div class="portal-panel hidden" data-panel="payments">
+                        <div class="portal-welcome" style="margin-bottom:2rem;">
+                            <h2 style="font-size:1.8rem;">Payments & Documents</h2>
+                            <p class="section-copy">View project NDAs, download invoice templates, and submit invoices for completed projects.</p>
+                        </div>
+                        <div data-portal-payments>
+                            <p class="section-copy">Loading your payment info...</p>
+                        </div>
+                    </div>
+
+                    <!-- Messages -->
+                    <div class="portal-panel hidden" data-panel="messages">
+                        <div class="message-thread" data-message-thread>
+                            <p class="section-copy">Loading messages...</p>
+                        </div>
+                        <form class="message-compose" data-message-form>
+                            <textarea data-message-input placeholder="Type your message to YUGM AI..." rows="3" required></textarea>
+                            <button class="btn btn-primary" type="submit">Send</button>
+                        </form>
+                    </div>
+
+                    <!-- Profile -->
+                    <div class="portal-panel hidden" data-panel="profile">
+                        <form class="auth-form profile-form" data-profile-form>
+                            <h3>Account details</h3>
+                            <div class="field-grid">
+                                <div class="field"><label for="pf-name">Full Name</label><input id="pf-name"></div>
+                                <div class="field"><label for="pf-phone">Phone Number</label><input id="pf-phone" type="tel"></div>
+                            </div>
+                            <div class="field"><label for="pf-email">Email Address</label><input id="pf-email" type="email" disabled></div>
+                            <div class="field-grid">
+                                <div class="field"><label for="pf-company">Company Name</label><input id="pf-company"></div>
+                                <div class="field"><label for="pf-type">Account Type</label>
+                                    <select id="pf-type">
+                                        <option value="freelancer">Freelancer</option>
+                                        <option value="vendor">Vendor</option>
+                                        <option value="company">Company</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field"><label for="pf-bio">Bio / About Me</label><textarea id="pf-bio" rows="3"></textarea></div>
+                            <div class="field"><label for="pf-experience">Work Experience</label><textarea id="pf-experience" rows="3"></textarea></div>
+                            <div class="field"><label for="pf-cv">CV / Resume Link (Google Drive)</label><input id="pf-cv" type="url" placeholder="https://drive.google.com/..."></div>
+                            <button class="btn btn-primary" type="submit">Save Changes</button>
+                            <p class="auth-status" data-profile-status aria-live="polite"></p>
+                        </form>
+                        <form class="auth-form profile-form" data-password-form>
+                            <h3>Change password</h3>
+                            <div class="field"><label for="pf-pass">New Password</label><input id="pf-pass" type="password" autocomplete="new-password"></div>
+                            <button class="btn btn-outline" type="submit">Update Password</button>
+                            <p class="auth-status" data-password-status aria-live="polite"></p>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <div class="container footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.png" alt="YUGM AI">
+                    <p>&copy; 2026 YUGM AI. All rights reserved.<br>Delhi, India.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="index.html">Home</a>
+                    <a href="contact.html">Contact</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Project detail / step-flow modal -->
+    <div class="modal-overlay" data-project-modal hidden>
+        <div class="modal-card modal-wide" role="dialog" aria-modal="true">
+            <button class="modal-close" type="button" data-modal-close aria-label="Close">
+                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18"></path>
+                </svg>
+            </button>
+            <div data-modal-body></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/script.js" defer></script>
+    <script src="js/portal.js" defer></script>
+</body>
+</html>

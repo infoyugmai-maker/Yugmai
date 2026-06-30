@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | YUGM AI Contributor and Partner Portal</title>
+    <meta name="description" content="Create your YUGM AI account as a freelancer, vendor, or company to join live AI data projects.">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="logo.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container header-inner">
+                <a class="brand" href="index.html#home" aria-label="YUGM AI home">
+                    <img src="logo.png" alt="YUGM AI logo">
+                </a>
+                <nav class="primary-nav" aria-label="Primary navigation">
+                    <a href="index.html#home">Home</a>
+                    <a href="index.html#projects">Projects</a>
+                    <a href="index.html#services">Services</a>
+                    <a href="index.html#process">Process</a>
+                    <a href="contact.html">Contact</a>
+                </nav>
+                <div class="nav-actions">
+                    <a class="btn btn-ghost" href="login.html">Login</a>
+                    <button class="mobile-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+                        <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="page-main">
+            <section class="section">
+                <div class="container auth-layout">
+                    <div class="auth-copy" data-reveal>
+                        <p class="section-eyebrow">Create account</p>
+                        <h1 class="section-title">Join YUGM AI as a freelancer, vendor, or company.</h1>
+                        <p class="section-copy">Sign up to browse live AI data projects, show interest, complete training, submit your work, and get paid through a guided workflow.</p>
+                        <div class="feature-list">
+                            <article class="feature-row">
+                                <div class="feature-icon">
+                                    <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4V5zM8 9h8M8 13h5M8 17h8"></path></svg>
+                                </div>
+                                <div>
+                                    <h3>One portal, every project</h3>
+                                    <p>See all live and upcoming projects the moment they are published.</p>
+                                </div>
+                            </article>
+                            <article class="feature-row">
+                                <div class="feature-icon">
+                                    <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l7 4v5c0 4.5-2.9 7.8-7 9-4.1-1.2-7-4.5-7-9V7l7-4z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3>Guided four-step flow</h3>
+                                    <p>Interest, training and agreement, submission, then payout - tracked end to end.</p>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div class="auth-panel" data-reveal="delay-1">
+                        <div class="auth-head">
+                            <img src="logo.png" alt="YUGM AI">
+                            <h1>Create your account</h1>
+                            <p>Select your account type to begin.</p>
+                        </div>
+
+                        <div class="type-grid" role="radiogroup" aria-label="Account type">
+                            <button type="button" class="type-card is-selected" data-type="freelancer" role="radio" aria-checked="true">
+                                <span class="type-title">Freelancer</span>
+                                <span class="type-sub">Individual contributor</span>
+                            </button>
+                            <button type="button" class="type-card" data-type="vendor" role="radio" aria-checked="false">
+                                <span class="type-title">Vendor</span>
+                                <span class="type-sub">Team or agency</span>
+                            </button>
+                            <button type="button" class="type-card" data-type="company" role="radio" aria-checked="false">
+                                <span class="type-title">Company</span>
+                                <span class="type-sub">Enterprise partner</span>
+                            </button>
+                        </div>
+
+                        <form class="auth-form" data-register-form>
+                            <div class="field-grid">
+                                <div class="field">
+                                    <label for="name">Full name</label>
+                                    <input id="name" name="name" type="text" placeholder="Alex Johnson" required>
+                                </div>
+                                <div class="field">
+                                    <label for="phone">Phone number</label>
+                                    <input id="phone" name="phone" type="tel" placeholder="+91 90000 00000" required>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="email">Email address</label>
+                                <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+                            </div>
+                            <div class="field">
+                                <label for="company">Company name (optional)</label>
+                                <input id="company" name="company" type="text" placeholder="Company Pvt. Ltd.">
+                            </div>
+                            <div class="field-grid">
+                                <div class="field">
+                                    <label for="password">Password</label>
+                                    <input id="password" name="password" type="password" placeholder="********" autocomplete="new-password" required>
+                                </div>
+                                <div class="field">
+                                    <label for="confirm">Confirm password</label>
+                                    <input id="confirm" name="confirm" type="password" placeholder="********" autocomplete="new-password" required>
+                                </div>
+                            </div>
+                            <p class="form-note" style="text-align:left;">Minimum 8 characters, with at least one uppercase letter and one number.</p>
+                            <button class="btn btn-primary" type="submit">Create Account</button>
+                            <div class="divider"><span>OR</span></div>
+                            <button class="btn btn-outline" type="button" data-google-btn>
+                                <svg aria-hidden="true" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h5.9c-.3 1.4-1 2.5-2.2 3.3v2.8h3.6c2.1-2 3.3-4.8 3.3-8.1z"></path>
+                                    <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.6l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.2V17c1.8 3.6 5.5 6 9.8 6z"></path>
+                                    <path fill="#FBBC05" d="M5.8 14.2c-.2-.7-.3-1.4-.3-2.2s.1-1.5.3-2.2V7H2.2C1.4 8.5 1 10.2 1 12s.4 3.5 1.2 5l3.6-2.8z"></path>
+                                    <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.6l3.2-3.2C17.5 2.1 15 1 12 1 7.7 1 4 3.4 2.2 7l3.6 2.8c.9-2.5 3.3-4.4 6.2-4.4z"></path>
+                                </svg>
+                                Continue with Google
+                            </button>
+                            <p class="form-note">Already have an account? <a href="login.html">Sign in</a>.</p>
+                            <p class="auth-status" data-auth-status aria-live="polite"></p>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <div class="container footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.png" alt="YUGM AI">
+                    <p>&copy; 2026 YUGM AI. All rights reserved.<br>Delhi, India. Serving partners worldwide.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="index.html#services">Services</a>
+                    <a href="contact.html">Contact</a>
+                    <a href="https://monetizationx.in" target="_blank" rel="noopener noreferrer">Monetization X</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Google completion modal (new Google users provide phone + type) -->
+    <div class="modal-overlay" data-google-modal hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="gm-title">
+            <h2 id="gm-title">Complete your registration</h2>
+            <p>A few details to finish setting up your account.</p>
+            <div class="type-grid" role="radiogroup" aria-label="Account type" data-modal-types>
+                <button type="button" class="type-card is-selected" data-type="freelancer" role="radio" aria-checked="true"><span class="type-title">Freelancer</span></button>
+                <button type="button" class="type-card" data-type="vendor" role="radio" aria-checked="false"><span class="type-title">Vendor</span></button>
+                <button type="button" class="type-card" data-type="company" role="radio" aria-checked="false"><span class="type-title">Company</span></button>
+            </div>
+            <form data-google-complete-form class="auth-form">
+                <div class="field">
+                    <label for="g-phone">Phone number</label>
+                    <input id="g-phone" type="tel" placeholder="+91 90000 00000" required>
+                </div>
+                <div class="field">
+                    <label for="g-company">Company name (optional)</label>
+                    <input id="g-company" type="text" placeholder="Company Pvt. Ltd.">
+                </div>
+                <button class="btn btn-primary" type="submit">Complete Registration</button>
+                <p class="auth-status" data-modal-status aria-live="polite"></p>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/script.js" defer></script>
+    <script src="js/register-page.js" defer></script>
+</body>
+</html>

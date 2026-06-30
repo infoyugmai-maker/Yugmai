@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YUGM AI | AI Training Data, Annotation and Transcription Services</title>
+    <meta name="description" content="YUGM AI builds high-quality AI training datasets through human-in-the-loop data collection, speech annotation, transcription, and quality review workflows.">
+    <meta name="keywords" content="YUGM AI, AI training data, data annotation, speech annotation, transcription, data collection, human in the loop AI">
+    <meta name="author" content="YUGM AI">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://yugmai.in/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="YUGM AI | Human Precision for Machine Intelligence">
+    <meta property="og:description" content="Human-in-the-loop data recording, annotation, transcription, and QA operations for AI teams.">
+    <meta property="og:url" content="https://yugmai.in/">
+    <meta property="og:image" content="https://yugmai.in/logo.png">
+    <meta property="og:site_name" content="YUGM AI">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="YUGM AI | AI Training Data Services">
+    <meta name="twitter:description" content="High-quality data operations for AI training, annotation, transcription, and review.">
+    <meta name="theme-color" content="#020409">
+    <link rel="icon" href="logo.png" type="image/png">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css?v=2">
+    <style id="premium-css">
+        .hero-waves-container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: -1 !important;
+            pointer-events: none !important;
+        }
+        .page-main {
+            min-height: calc(100vh - var(--header-h));
+            background: radial-gradient(circle at 10% 20%, rgba(11, 108, 255, 0.06), transparent 50%),
+                        radial-gradient(circle at 90% 70%, rgba(84, 163, 255, 0.05), transparent 50%),
+                        radial-gradient(circle at 50% 90%, rgba(11, 108, 255, 0.04), transparent 50%) !important;
+            position: relative;
+            z-index: 1;
+        }
+        .section-title {
+            color: var(--white) !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.02em !important;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+        }
+        .service-card, .project-card, .process-card, .contact-card, .feature-card {
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 1.25rem !important;
+            background: rgba(18, 18, 18, 0.25) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
+            transition: transform 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 300ms ease, background 300ms ease, box-shadow 300ms ease !important;
+        }
+        .service-card:hover, .project-card:hover, .process-card:hover, .contact-card:hover, .feature-card:hover {
+            transform: translateY(-8px) !important;
+            border-color: rgba(84, 163, 255, 0.5) !important;
+            background: rgba(84, 163, 255, 0.1) !important;
+            box-shadow: 0 16px 48px rgba(11, 108, 255, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+        }
+    </style>
+    <script src="js/waves.js?v=2" defer></script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "YUGM AI",
+      "url": "https://yugmai.in/",
+      "logo": "https://yugmai.in/logo.png",
+      "email": "info@yugmai.in",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Delhi",
+        "addressCountry": "IN"
+      },
+      "description": "YUGM AI provides AI training data, data collection, annotation, transcription, and quality review services."
+    }
+    </script>
+</head>
+<body>
+    <div class="hero-waves-container"><canvas id="hero-waves"></canvas></div>
+    
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container header-inner">
+                <a class="brand" href="index.html#home" aria-label="YUGM AI home">
+                    <img src="logo.png" alt="YUGM AI logo">
+                </a>
+                <nav class="primary-nav" aria-label="Primary navigation">
+                    <a href="index.html#home">Home</a>
+                    <a href="index.html#projects">Projects</a>
+                    <a href="index.html#services">Services</a>
+                    <a href="index.html#process">Process</a>
+                    <a href="privacy.html">Privacy</a>
+                    <a href="terms.html">Terms</a>
+                    <a href="contact.html">Contact</a>
+                    <a href="login.html" class="mobile-only">Login</a>
+                    <a href="register.html" class="mobile-only">Register</a>
+                </nav>
+                <div class="nav-actions">
+                    <a class="btn btn-ghost" href="login.html">Login</a>
+                    <a class="btn btn-primary" href="register.html">Register</a>
+                    <button class="mobile-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+                        <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="page-main">
+            <section class="hero" id="home">
+                <div class="container hero-grid">
+                    <div class="hero-copy" data-reveal>
+                        <div class="brand-kicker"><span></span><strong>AI data operations built for precision</strong></div>
+                        <h1>Human precision for <span class="text-gradient">machine intelligence.</span></h1>
+                        <p class="hero-lede">YUGM AI helps teams build reliable datasets through managed recording, annotation, transcription, and multi-layer quality review workflows.</p>
+                        <div class="hero-actions">
+                            <a class="btn btn-primary" href="register.html">
+                                Work With Us
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6"></path>
+                                </svg>
+                            </a>
+                            <a class="btn btn-outline" href="#projects">Explore Projects</a>
+                            <a class="btn btn-ghost" href="contact.html">Contact as Client</a>
+                        </div>
+                        <div class="hero-proof" id="hero-stats">
+                            <div class="proof-item">
+                                <strong><span class="count-up" data-target="1000">0</span>+</strong>
+                                <span>Registered participants</span>
+                            </div>
+                            <div class="proof-item">
+                                <strong><span class="count-up" data-target="150">0</span>+</strong>
+                                <span>Projects completed</span>
+                            </div>
+                            <div class="proof-item">
+                                <strong><span class="count-up" data-target="100">0</span>+</strong>
+                                <span>Languages supported</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hero-panel" data-reveal="delay-1" aria-label="YUGM AI operations console preview">
+                        <div class="panel-topbar">
+                            <div class="panel-brand">
+                                <img src="logo.png" alt="YUGM AI">
+                            </div>
+                            <span class="status-chip"><span class="status-dot"></span>Live ops</span>
+                        </div>
+                        <div class="ops-board">
+                            <article class="ops-card">
+                                <div class="ops-icon">
+                                    <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.5a4.5 4.5 0 0 0 4.5-4.5V7a4.5 4.5 0 1 0-9 0v7a4.5 4.5 0 0 0 4.5 4.5zM5 12v2a7 7 0 0 0 14 0v-2M12 21v-2.5"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3>Speech Recording</h3>
+                                    <p>Scripted and natural capture sessions.</p>
+                                </div>
+                                <strong class="metric">92%</strong>
+                            </article>
+                            <article class="ops-card">
+                                <div class="ops-icon">
+                                    <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16M4 12h10M4 19h16M18 9v6m-3-3h6"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3>Annotation Review</h3>
+                                    <p>Human validation before delivery.</p>
+                                </div>
+                                <strong class="metric">3 layers</strong>
+                            </article>
+                            <article class="ops-card">
+                                <div class="ops-icon">
+                                    <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h9l5 5v11H5V4zM14 4v5h5M8 13h8M8 17h8"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3>Transcription QA</h3>
+                                    <p>Clean text from complex audio.</p>
+                                </div>
+                                <strong class="metric">Ready</strong>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-tight" aria-label="YUGM AI delivery signals">
+                <div class="container signal-strip" data-reveal>
+                    <div class="signal-item">
+                        <strong>Data</strong>
+                        <span>Collection, cleaning, labeling, and review.</span>
+                    </div>
+                    <div class="signal-item">
+                        <strong>Audio</strong>
+                        <span>Speech capture and segment-level annotation.</span>
+                    </div>
+                    <div class="signal-item">
+                        <strong>Text</strong>
+                        <span>Transcription and structured extraction.</span>
+                    </div>
+                    <div class="signal-item">
+                        <strong>QA</strong>
+                        <span>Layered checks before handoff.</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="projects">
+                <div class="container">
+                    <div class="section-header" data-reveal>
+                        <div>
+                            <p class="section-eyebrow">Live and upcoming workflows</p>
+                            <h2 class="section-title">Project areas designed for repeatable quality.</h2>
+                        </div>
+                        <p class="section-copy">Each workflow is built around clear acceptance criteria, contributor instructions, and review checkpoints.</p>
+                    </div>
+                    <div class="card-grid" data-live-projects>
+                        <article class="project-card" data-reveal>
+                            <div>
+                                <div class="project-meta">
+                                    <span class="project-tag">Recording</span>
+                                    <span class="status-chip"><span class="status-dot"></span>Active</span>
+                                </div>
+                                <h3>Multilingual Speech Collection</h3>
+                                <p>Voice sessions for training speech systems across accents, environments, and prompt types.</p>
+                            </div>
+                            <div class="progress-track"><span class="progress-bar value-78"></span></div>
+                        </article>
+                        <article class="project-card" data-reveal="delay-1">
+                            <div>
+                                <div class="project-meta">
+                                    <span class="project-tag">Annotation</span>
+                                    <span class="status-chip"><span class="status-dot"></span>Active</span>
+                                </div>
+                                <h3>Audio and Intent Labeling</h3>
+                                <p>Structured labels, segmentation, and validation for AI model training pipelines.</p>
+                            </div>
+                            <div class="progress-track"><span class="progress-bar value-64"></span></div>
+                        </article>
+                        <article class="project-card" data-reveal="delay-2">
+                            <div>
+                                <div class="project-meta">
+                                    <span class="project-tag">Review</span>
+                                    <span class="status-chip"><span class="status-dot"></span>Upcoming</span>
+                                </div>
+                                <h3>Transcription Quality Review</h3>
+                                <p>Human-led transcript cleanup for complex audio and domain-specific language.</p>
+                            </div>
+                            <div class="progress-track"><span class="progress-bar value-42"></span></div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="services">
+                <div class="container">
+                    <div class="section-header" data-reveal>
+                        <div>
+                            <p class="section-eyebrow">What we do</p>
+                            <h2 class="section-title">Data services with human judgment at the center.</h2>
+                        </div>
+                    </div>
+                    <div class="card-grid">
+                        <article class="service-card" data-reveal>
+                            <div class="card-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.5a4.5 4.5 0 0 0 4.5-4.5V7a4.5 4.5 0 1 0-9 0v7a4.5 4.5 0 0 0 4.5 4.5zM5 12v2a7 7 0 0 0 14 0v-2M12 21v-2.5"></path>
+                                </svg>
+                            </div>
+                            <h3>Data Recording</h3>
+                            <p>Managed contributor flows for speech, audio, and scenario-based collection.</p>
+                        </article>
+                        <article class="service-card" data-reveal="delay-1">
+                            <div class="card-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h16M17 9v6m-3-3h6"></path>
+                                </svg>
+                            </div>
+                            <h3>Annotation</h3>
+                            <p>Precise labels, segmentation, classification, and review for training datasets.</p>
+                        </article>
+                        <article class="service-card" data-reveal="delay-2">
+                            <div class="card-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 4h9l5 5v11H5V4zM14 4v5h5M8 13h8M8 17h8"></path>
+                                </svg>
+                            </div>
+                            <h3>Transcription</h3>
+                            <p>Readable, structured text from multilingual, noisy, or domain-specific audio.</p>
+                        </article>
+                        <article class="service-card" data-reveal>
+                            <div class="card-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l7 4v5c0 4.5-2.9 7.8-7 9-4.1-1.2-7-4.5-7-9V7l7-4zM9 12l2 2 4-5"></path>
+                                </svg>
+                            </div>
+                            <h3>Quality Assurance</h3>
+                            <p>Review systems that reduce ambiguity, catch errors, and protect deliverables.</p>
+                        </article>
+                        <article class="service-card" data-reveal="delay-1">
+                            <div class="card-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4V5zM8 9h8M8 13h5M8 17h8"></path>
+                                </svg>
+                            </div>
+                            <h3>Workflow Design</h3>
+                            <p>Project instructions, contributor checks, and delivery formats for scalable operations.</p>
+                        </article>
+                        <article class="service-card" data-reveal="delay-2">
+                            <div class="card-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h5l2-7 4 14 2-7h5"></path>
+                                </svg>
+                            </div>
+                            <h3>Delivery Monitoring</h3>
+                            <p>Operational visibility across progress, throughput, and review status.</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="process">
+                <div class="container">
+                    <div class="section-header" data-reveal>
+                        <div>
+                            <p class="section-eyebrow">How we work</p>
+                            <h2 class="section-title">A clean path from brief to reviewed dataset.</h2>
+                        </div>
+                    </div>
+                    <div class="process-grid">
+                        <article class="process-card" data-reveal>
+                            <span class="step-number">01</span>
+                            <h3>Scope</h3>
+                            <p>Define data type, acceptance rules, contributor profiles, and delivery format.</p>
+                        </article>
+                        <article class="process-card" data-reveal="delay-1">
+                            <span class="step-number">02</span>
+                            <h3>Onboard</h3>
+                            <p>Prepare instructions, screen contributors, and align teams before production.</p>
+                        </article>
+                        <article class="process-card" data-reveal="delay-2">
+                            <span class="step-number">03</span>
+                            <h3>Produce</h3>
+                            <p>Run recording, annotation, transcription, or review workflows with active tracking.</p>
+                        </article>
+                        <article class="process-card" data-reveal="delay-3">
+                            <span class="step-number">04</span>
+                            <h3>Validate</h3>
+                            <p>Apply quality checks and deliver structured outputs ready for AI training.</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-tight" id="work">
+                <div class="container">
+                    <div class="cta-band" data-reveal>
+                        <div class="cta-inner">
+                            <div>
+                                <p class="section-eyebrow">Build with YUGM AI</p>
+                                <h2>Bring us the data challenge. We will shape the workflow.</h2>
+                                <p class="section-copy">For companies, agencies, vendors, and contributors ready to work on reliable AI data operations.</p>
+                            </div>
+                            <div class="cta-actions">
+                                <a class="btn btn-primary" href="register.html">Join as Freelancer / Vendor</a>
+                                <a class="btn btn-outline" href="contact.html">Contact as Client</a>
+                                <a class="btn btn-ghost" href="login.html">Access Portal</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" aria-label="Partners and related brands">
+                <div class="container">
+                    <div class="section-header" data-reveal>
+                        <div>
+                            <p class="section-eyebrow">Partner network</p>
+                            <h2 class="section-title">Connected to focused digital operations.</h2>
+                        </div>
+                    </div>
+                    <div class="partner-row" data-reveal="delay-1">
+                        <a class="partner-link" href="https://monetizationx.in" target="_blank" rel="noopener noreferrer">Monetization X</a>
+                        <span class="partner-link">ScaleAI Dynamics</span>
+                        <span class="partner-link">Nexus Data</span>
+                        <span class="partner-link">VocalNet</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" id="about">
+                <div class="container about-layout">
+                    <div class="about-copy" data-reveal>
+                        <p class="section-eyebrow">About YUGM AI</p>
+                        <h2 class="section-title">Built in Delhi. Designed for global AI teams.</h2>
+                        <p>YUGM AI coordinates people, process, and review systems to produce training data that models can learn from with confidence.</p>
+                        <p>Our focus is practical: clear instructions, reliable contributors, thoughtful QA, and data outputs that are ready for demanding AI workflows.</p>
+                    </div>
+                    <div class="feature-list" data-reveal="delay-1">
+                        <article class="feature-row">
+                            <div class="feature-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l7 4v5c0 4.5-2.9 7.8-7 9-4.1-1.2-7-4.5-7-9V7l7-4z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>Confidential by default</h3>
+                                <p>Data operations are shaped around responsible access, secure handling, and clear accountability.</p>
+                            </div>
+                        </article>
+                        <article class="feature-row">
+                            <div class="feature-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>Structured for scale</h3>
+                                <p>Repeatable workflows help teams move from pilot datasets to larger programs.</p>
+                            </div>
+                        </article>
+                        <article class="feature-row">
+                            <div class="feature-icon">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12l4 4L19 6"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>Reviewed before delivery</h3>
+                                <p>Quality gates catch inconsistencies before they become model training issues.</p>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <div class="container footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.png" alt="YUGM AI">
+                    <p>&copy; 2026 YUGM AI. All rights reserved.<br>Delhi, India. Serving partners worldwide.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="contact.html">Contact</a>
+                    <a href="login.html">Login</a>
+                    <a href="register.html">Register</a>
+                    <a href="https://monetizationx.in" target="_blank" rel="noopener noreferrer">Monetization X</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth.js" defer></script>
+    <footer class="site-footer">
+        <div class="container footer-inner" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 2rem; margin-top: 4rem;">
+            <p>&copy; 2026 YUGM AI. All rights reserved.</p>
+            <div class="footer-links" style="display: flex; gap: 1.5rem;">
+                <a href="privacy.html" style="color: var(--muted); text-decoration: none;">Privacy Policy</a>
+                <a href="terms.html" style="color: var(--muted); text-decoration: none;">Terms of Service</a>
+                <a href="contact.html" style="color: var(--muted); text-decoration: none;">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/script.js?v=2" defer></script>
+</body>
+</html>
