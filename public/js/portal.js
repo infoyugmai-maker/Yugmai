@@ -1060,6 +1060,74 @@ function openJoinFormModal(projectId, project, user, profile, btn) {
       if (f.type === "file-upload") {
         // File uploads are handled separately
         return;
+      }
+      var val = "";
+      if (f.type === "multiple-choice") {
+        var checked = body.querySelector('input[name="jf-' + i + '"]:checked');
+        if (checked) val = checked.value;
+      } else {
+        var input = body.querySelector('[data-jf="' + i + '"]');
+        if (input) val = input.value.trim();
+      }
+      if (f.required && !val) valid = false;
+      answers[f.label] = val;
+    });
+
+    if (!valid) {
+      fail(status, "Please fill out all required fields.");
+      return;
+    }
+
+    setBusy(form, true);
+    status.style.color = "";
+    status.textContent = "Submitting...";
+
+    // Handle file uploads
+    try {
+      for (var i = 0; i < fields.length; i++) {
+        var f = fields[i];
+        if (f.type === "file-upload") {
+          var input = body.querySelector('[data-jf="' + i + '"]');
+          if (input && input.files.length > 0) {
+            var file = input.files[0];
+            var formData = new FormData();
+            formData.append("file", file);
+            var res = await fetch("/api/upload", { method: "POST", body: formData });
+            var data = await res.json();
+            if (data.url) answers[f.label] = data.url;
+          } else if (f.required) {
+            throw new Error("File for '" + f.label + "' is required.");
+          }
+        }
+      }
+
+      await db.collection("participations").add({
+        userId: user.uid,
+        projectId: projectId,
+        step: 1,
+        status: "interest",
+        iteration: project.iteration || 1,
+        customAnswers: answers,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      btn.textContent = "Joined";
+      btn.classList.remove("btn-outline");
+      btn.classList.add("btn-primary");
+      modal.hidden = true;
+      document.body.classList.remove("menu-open");
+      loadMyProjects(user, profile);
+    } catch (err) {
+      fail(status, err.message);
+    } finally {
+      setBusy(form, false);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Portal Payments
+// ---------------------------------------------------------------------------
+async function loadPortalPayments(user, profile) {
   var container = document.querySelector("[data-portal-payments]");
   if (!container) return;
   container.innerHTML = "<p>Loading...</p>";
