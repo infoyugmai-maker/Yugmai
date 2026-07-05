@@ -30,18 +30,30 @@ const PORT = process.env.PORT || 3000;
 // ---------------------------------------------------------------------------
 
 let firebaseAdmin = null;
+let firebaseInitError = "Not initialized";
 try {
-  const saPath = path.resolve(__dirname, process.env.FIREBASE_SERVICE_ACCOUNT || "./serviceAccountKey.json");
-  if (fs.existsSync(saPath)) {
+  let serviceAccount = null;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT && process.env.FIREBASE_SERVICE_ACCOUNT.trim().startsWith('{')) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+    const saPath = path.resolve(__dirname, process.env.FIREBASE_SERVICE_ACCOUNT || "./serviceAccountKey.json");
+    if (fs.existsSync(saPath)) {
+      serviceAccount = JSON.parse(fs.readFileSync(saPath, "utf8"));
+    } else {
+      firebaseInitError = "File not found at " + saPath;
+      console.warn("[init] " + firebaseInitError);
+    }
+  }
+
+  if (serviceAccount) {
     const admin = (await import("firebase-admin")).default;
-    const serviceAccount = JSON.parse(fs.readFileSync(saPath, "utf8"));
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     firebaseAdmin = admin;
+    firebaseInitError = null;
     console.log("[init] Firebase Admin ready");
-  } else {
-    console.warn("[init] No serviceAccountKey.json - admin-verified routes disabled until added");
   }
 } catch (err) {
+  firebaseInitError = err.message;
   console.warn("[init] Firebase Admin failed to load:", err.message);
 }
 
@@ -95,7 +107,7 @@ app.use(express.json({ limit: "2mb" }));
 
 // --- Auth helper: verify Firebase ID token, optionally require admin --------
 async function requireAuth(req, res, next) {
-  if (!firebaseAdmin) return res.status(503).json({ error: "Auth not configured on server" });
+  if (!firebaseAdmin) return res.status(503).json({ error: "Auth not configured on server. Reason: " + firebaseInitError });
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: "Missing token" });
