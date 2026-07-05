@@ -2,12 +2,14 @@ document.addEventListener("DOMContentLoaded", function () {
   var nav = document.querySelector(".primary-nav");
   var toggle = document.querySelector(".mobile-toggle");
   var navLinks = document.querySelectorAll(".primary-nav a");
-  var currentPage = window.location.pathname.split("/").pop() || "index.html";
+  var currentRaw = window.location.pathname.split("/").pop();
+  var currentPage = (currentRaw && currentRaw !== "index.html") ? currentRaw.replace(".html", "") : "index.html";
 
   navLinks.forEach(function (link) {
     var href = link.getAttribute("href");
     var parts = href.split("#");
-    var linkPage = parts[0] || "index.html";
+    var linkPageRaw = parts[0] || "index.html";
+    var linkPage = (linkPageRaw && linkPageRaw !== "/" && linkPageRaw !== "index.html") ? linkPageRaw.replace("/", "").replace(".html", "") : "index.html";
     var hash = parts[1];
     if (linkPage === currentPage && (!hash || hash === "home")) {
       link.classList.add("active");
@@ -366,8 +368,9 @@ function addChatMessage(body, text, sender) {
 // Floating action shortcuts - bottom-right on public pages
 // ---------------------------------------------------------------------------
 function buildFloatingShortcuts() {
-  var page = window.location.pathname.split("/").pop() || "index.html";
-  var publicPages = ["index.html", "contact.html", ""];
+  var currentRaw = window.location.pathname.split("/").pop();
+  var page = (currentRaw && currentRaw !== "index.html") ? currentRaw.replace(".html", "") : "index.html";
+  var publicPages = ["index.html", "contact", ""];
   if (publicPages.indexOf(page) === -1) return;
 
   var wrap = document.createElement("div");
@@ -443,7 +446,8 @@ async function loadLiveProjects() {
         '<span class="project-tag">' + escapeHtml(p.workType || "Project") + '</span>' +
         '<span class="status-chip"><span class="status-dot"></span>' + escapeHtml(statusLabel) + '</span>' +
         '</div><h3>' + escapeHtml(p.name || "Untitled project") + '</h3>' +
-        '<p>' + escapeHtml(p.description || "") + '</p>' +
+        '<p class="project-desc" data-desc-id="' + doc.id + '">' + escapeHtml(p.description || "") + '</p>' +
+        '<a class="read-more-link" data-read-more="' + doc.id + '">Read more</a>' +
         (langs ? '<p class="project-langs">' + escapeHtml(langs) + '</p>' : '') +
         '</div>' +
         '<a class="btn btn-outline" href="register.html">Join Project</a>' +
@@ -526,5 +530,40 @@ document.addEventListener('DOMContentLoaded', () => {
       card.style.setProperty("--mouse-x", x + "px");
       card.style.setProperty("--mouse-y", y + "px");
     });
+  });
+
+  // Global listener for "Read More" links on project cards (Home page)
+  document.body.addEventListener("click", async function (e) {
+    var btn = e.target.closest("[data-read-more]");
+    if (!btn) return;
+    
+    var originalText = btn.textContent;
+    btn.textContent = "Loading...";
+
+    var projectId = btn.dataset.readMore;
+    try {
+      if (!window._firestoreModule || !window._db) throw new Error("Firestore not initialized");
+      var fs = window._firestoreModule;
+      var db = window._db;
+      
+      var pDoc = await fs.getDoc(fs.doc(db, "projects", projectId));
+      if (!pDoc.exists()) throw new Error("Not found");
+      var p = pDoc.data();
+      
+      var overlay = document.createElement("div");
+      overlay.className = "full-screen-modal-overlay";
+      var content = document.createElement("div");
+      content.className = "full-screen-modal-content";
+      content.innerHTML = '<h2>' + escapeHtml(p.name || "Details") + '</h2>' +
+        '<div style="white-space:pre-wrap; margin-top:20px; line-height:1.6;">' + escapeHtml(p.description || "") + '</div>' +
+        '<div style="margin-top:30px; text-align:right;"><button class="btn btn-outline" onclick="this.closest(\'.full-screen-modal-overlay\').remove()">Close</button></div>';
+      btn.textContent = originalText;
+      overlay.appendChild(content);
+      document.body.appendChild(overlay);
+    } catch (err) {
+      console.error(err);
+      alert("Could not load project details.");
+      btn.textContent = originalText;
+    }
   });
 });

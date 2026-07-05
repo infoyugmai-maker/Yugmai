@@ -616,9 +616,56 @@ textarea {
 
 .project-card {
   display: flex;
-  min-height: 230px;
+  min-height: 320px; /* Allow expansion so buttons aren't cut off */
   flex-direction: column;
   justify-content: space-between;
+  overflow: hidden;
+  position: relative;
+}
+
+.project-card .project-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: auto;
+}
+
+.read-more-link {
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 5px;
+  display: block;
+  text-align: right;
+  font-weight: 500;
+}
+.read-more-link:hover {
+  text-decoration: underline;
+}
+
+.full-screen-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.full-screen-modal-content {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
 }
 
 .project-meta {

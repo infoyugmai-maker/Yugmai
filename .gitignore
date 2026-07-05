@@ -4,8 +4,8 @@ server/node_modules/
 
 # Secrets — NEVER commit these
 server/.env
-.env
-*serviceAccount*.json
+server/serviceAccountKey.json
+server/driveCredentials.json
 serviceAccountKey.json
 
 # Logs

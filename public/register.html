@@ -160,15 +160,56 @@
                 <button type="button" class="type-card" data-type="company" role="radio" aria-checked="false"><span class="type-title">Company</span></button>
             </div>
             <form data-google-complete-form class="auth-form">
-                <div class="field">
-                    <label for="g-phone">Phone number</label>
-                    <input id="g-phone" type="tel" placeholder="+91 90000 00000" required>
+                <div id="g-basic-info">
+                    <div class="field">
+                        <label for="g-phone">Phone number</label>
+                        <input id="g-phone" type="tel" placeholder="+91 90000 00000">
+                    </div>
+                    <div class="field">
+                        <label for="g-company">Company name (optional)</label>
+                        <input id="g-company" type="text" placeholder="Company Pvt. Ltd.">
+                    </div>
                 </div>
-                <div class="field">
-                    <label for="g-company">Company name (optional)</label>
-                    <input id="g-company" type="text" placeholder="Company Pvt. Ltd.">
+                
+                <div class="field" style="margin-top: 1.5rem;">
+                    <label for="g-languages">Languages you can provide (comma-separated)</label>
+                    <input id="g-languages" type="text" placeholder="English, Hindi, Urdu, etc.">
                 </div>
-                <button class="btn btn-primary" type="submit">Complete Registration</button>
+                
+                <div class="field" style="margin-top: 1.5rem;">
+                    <label>Services & Skills</label>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px;">Select the services you can provide:</p>
+                    <div class="skills-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Data Collection"> Data Collection</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Data Annotation"> Data Annotation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Video Annotation"> Video Annotation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Audio Annotation"> Audio Annotation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Text Annotation"> Text Annotation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Data Labeling"> Data Labeling</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Audio & Speech Services"> Audio & Speech Services</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Transcription"> Transcription</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Translation"> Translation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="AI Evaluation"> AI Evaluation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="RLHF"> RLHF</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Content Moderation"> Content Moderation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Computer Vision"> Computer Vision</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Autonomous Vehicle Data"> Autonomous Vehicle Data</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Medical AI Data"> Medical AI Data</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="OCR & Document AI"> OCR & Document AI</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Search & Recommendation AI"> Search & Recommendation AI</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Generative AI Data"> Generative AI Data</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Human Evaluation"> Human Evaluation</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Knowledge & Language Tasks"> Knowledge & Language Tasks</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Code & Technical AI"> Code & Technical AI</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="3D & Spatial AI"> 3D & Spatial AI</label>
+                        <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="skills" value="Quality Assurance QA"> Quality Assurance QA</label>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" type="submit" style="flex: 1;">Save Profile</button>
+                    <button class="btn btn-ghost" type="button" data-skip-profile style="flex: 1;">Skip for now</button>
+                </div>
                 <p class="auth-status" data-modal-status aria-live="polite"></p>
             </form>
         </div>

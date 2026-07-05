@@ -101,6 +101,15 @@ function initPortal(user, profile) {
   var userNameEl = document.querySelector("[data-user-name]");
   if (welcomeTitle) welcomeTitle.textContent = "Welcome, " + (profile.name || user.email);
   if (userNameEl) userNameEl.textContent = profile.name || user.email;
+  
+  var banner = document.getElementById("profile-completion-banner");
+  if (banner) {
+    if (!profile.languages || !profile.skills || profile.languages.length === 0) {
+      banner.style.display = "block";
+    } else {
+      banner.style.display = "none";
+    }
+  }
 
   var logoutBtn = document.querySelector("[data-logout-btn]");
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
@@ -129,6 +138,52 @@ function initPortal(user, profile) {
   loadSubmitWork(user, profile);
   loadProfile(user, profile);
   loadPortalPayments(user, profile);
+
+  // Unread messages badge
+  var msgTab = document.querySelector('[data-tab="messages"]');
+  if (msgTab) {
+    db.collection("messages").doc(user.uid).onSnapshot(function(doc) {
+      if (doc.exists) {
+        var unread = doc.data().unreadUser || 0;
+        if (unread > 0) {
+          msgTab.innerHTML = 'Messages <span class="badge" style="background:#ff4757;color:#fff;border-radius:12px;padding:2px 6px;font-size:0.75rem;margin-left:4px;">' + unread + '</span>';
+        } else {
+          msgTab.innerHTML = 'Messages';
+        }
+      }
+    });
+  }
+
+  // Global listener for "Read More" buttons on project cards
+  document.body.addEventListener("click", async function (e) {
+    var btn = e.target.closest("[data-read-more]");
+    if (!btn) return;
+    
+    var originalText = btn.textContent;
+    btn.textContent = "Loading...";
+
+    var projectId = btn.dataset.readMore;
+    try {
+      var pDoc = await db.collection("projects").doc(projectId).get();
+      if (!pDoc.exists) throw new Error("Not found");
+      var p = pDoc.data();
+      
+      var overlay = document.createElement("div");
+      overlay.className = "full-screen-modal-overlay";
+      var content = document.createElement("div");
+      content.className = "full-screen-modal-content";
+      content.innerHTML = '<h2>' + esc(p.name || "Details") + '</h2>' +
+        '<div style="white-space:pre-wrap; margin-top:20px; line-height:1.6;">' + esc(p.description || "") + '</div>' +
+        '<div style="margin-top:30px; text-align:right;"><button class="btn btn-outline" onclick="this.closest(\'.full-screen-modal-overlay\').remove()">Close</button></div>';
+      btn.textContent = originalText;
+      overlay.appendChild(content);
+      document.body.appendChild(overlay);
+    } catch (err) {
+      console.error(err);
+      alert("Could not load project details.");
+      btn.textContent = originalText;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -184,7 +239,8 @@ async function loadPortalOverview(user, profile) {
             '<span class="project-tag">' + esc(p.workType || "Project") + '</span>' +
             '<span class="status-chip"><span class="status-dot"></span>' + esc((p.status || "active").toUpperCase()) + '</span>' +
             '</div><h3>' + esc(p.name || "Untitled") + '</h3>' +
-            '<p>' + esc((p.description || "").slice(0, 120)) + '</p>' +
+            '<p class="project-desc" data-desc-id="' + doc.id + '">' + esc(p.description || "") + '</p>' +
+            '<a class="read-more-link" data-read-more="' + doc.id + '">Read more</a>' +
             (langs ? '<p class="project-langs">Languages: ' + esc(langs) + '</p>' : '') +
             '</div></article>';
         });
@@ -230,18 +286,34 @@ async function loadSubmitWork(user, profile) {
     e.preventDefault();
     var projectId = select.value;
     var hours = document.getElementById("sw-hours").value;
-    var link = document.getElementById("sw-link").value.trim();
+    var fileInput = document.getElementById("sw-file");
     var label = document.getElementById("sw-label").value.trim();
     var workType = document.getElementById("sw-type").value;
     var notes = document.getElementById("sw-notes").value.trim();
 
     if (!projectId) { fail(status, "Please select a project you have joined."); return; }
-    if (!hours || !link) { fail(status, "Hours and work link are required."); return; }
+    if (!hours || !fileInput || fileInput.files.length === 0) { fail(status, "Hours and a work file are required."); return; }
 
     setBusy(form, true);
     status.style.color = "";
-    status.textContent = "Submitting...";
+    status.textContent = "Uploading file (this may take a moment for large files)...";
+    var link = "";
     try {
+      var projName = select.options[select.selectedIndex].text;
+      var fData = new FormData();
+      fData.append("file", fileInput.files[0]);
+      fData.append("role", profile.role || "freelancer");
+      fData.append("userName", profile.name || user.email);
+      fData.append("projectName", projName);
+      fData.append("docType", workType || "Work Done");
+      
+      var tk = await user.getIdToken();
+      var uRes = await fetch("/api/drive/upload", { method: "POST", headers: { "Authorization": "Bearer " + tk }, body: fData });
+      if (!uRes.ok) throw new Error("File upload failed.");
+      var uj = await uRes.json();
+      link = uj.link;
+      
+      status.textContent = "Saving submission...";
       await db.collection("submissions").add({
         userId: user.uid,
         projectId: projectId,
@@ -269,28 +341,39 @@ async function loadSubmitWork(user, profile) {
   loadSubmitHistory(user);
 }
 
+let unsubSubmitHistory = null;
+
 async function loadSubmitHistory(user) {
   var container = document.querySelector("[data-submitwork-history]");
   if (!container) return;
+
+  if (unsubSubmitHistory) {
+    unsubSubmitHistory();
+    unsubSubmitHistory = null;
+  }
+
   try {
-    var snap = await db.collection("submissions").where("userId", "==", user.uid).get();
-    if (snap.empty) { container.innerHTML = '<p class="section-copy">No submissions yet.</p>'; return; }
-    var items = [];
-    snap.forEach(function (d) { items.push(d.data()); });
-    items.sort(function (a, b) {
-      var ta = a.submittedAt && a.submittedAt.seconds ? a.submittedAt.seconds : 0;
-      var tb = b.submittedAt && b.submittedAt.seconds ? b.submittedAt.seconds : 0;
-      return tb - ta;
+    unsubSubmitHistory = db.collection("submissions").where("userId", "==", user.uid).onSnapshot(function(snap) {
+      if (snap.empty) { container.innerHTML = '<p class="section-copy">No submissions yet.</p>'; return; }
+      var items = [];
+      snap.forEach(function (d) { items.push(d.data()); });
+      items.sort(function (a, b) {
+        var ta = a.submittedAt && a.submittedAt.seconds ? a.submittedAt.seconds : 0;
+        var tb = b.submittedAt && b.submittedAt.seconds ? b.submittedAt.seconds : 0;
+        return tb - ta;
+      });
+      var rows = items.map(function (s) {
+        return '<tr><td>' + fmtDate(s.submittedAt) + '</td><td>' + esc(s.workType || "-") + '</td>' +
+          '<td>' + esc(s.hours || "-") + '</td>' +
+          '<td><a href="' + esc(s.driveLink || "#") + '" target="_blank" rel="noopener">View</a></td>' +
+          '<td>' + statusBadge(s.status) + '</td></tr>';
+      }).join("");
+      container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+        '<th>Date</th><th>Work Type</th><th>Hours</th><th>Link</th><th>Status</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }, function (err) {
+      container.innerHTML = '<p class="section-copy">Could not load history: ' + esc(err.message) + '</p>';
     });
-    var rows = items.map(function (s) {
-      return '<tr><td>' + fmtDate(s.submittedAt) + '</td><td>' + esc(s.workType || "-") + '</td>' +
-        '<td>' + esc(s.hours || "-") + '</td>' +
-        '<td><a href="' + esc(s.driveLink || "#") + '" target="_blank" rel="noopener">View</a></td>' +
-        '<td>' + statusBadge(s.status) + '</td></tr>';
-    }).join("");
-    container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
-      '<th>Date</th><th>Work Type</th><th>Hours</th><th>Link</th><th>Status</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   } catch (err) {
     container.innerHTML = '<p class="section-copy">Could not load history: ' + esc(err.message) + '</p>';
   }
@@ -314,8 +397,29 @@ function loadProfile(user, profile) {
   if (bioEl) bioEl.value = profile.bio || "";
   var expEl = document.getElementById("pf-experience");
   if (expEl) expEl.value = profile.experience || "";
-  var cvEl = document.getElementById("pf-cv");
-  if (cvEl) cvEl.value = profile.cvUrl || "";
+  var cvLinkSpan = document.getElementById("pf-cv-link");
+  var cvFileEl = document.getElementById("pf-cv");
+  if (cvLinkSpan && profile.cvUrl) {
+    cvFileEl.style.display = "none";
+    var cvName = profile.cvName || "Current CV";
+    cvLinkSpan.innerHTML = '<a href="' + esc(profile.cvUrl) + '" target="_blank">' + esc(cvName) + '</a>' +
+      ' <button type="button" class="btn btn-ghost btn-sm" id="btn-update-cv" style="margin-left:10px; padding: 2px 8px; font-size: 0.8rem;">Update</button>';
+    
+    document.getElementById("btn-update-cv").addEventListener("click", function() {
+      cvFileEl.style.display = "";
+      this.style.display = "none";
+    });
+  }
+
+  var langEl = document.getElementById("pf-languages");
+  if (langEl && profile.languages) langEl.value = profile.languages.join(", ");
+  
+  var skillCheckboxes = document.querySelectorAll("input[name='pf-skills']");
+  if (skillCheckboxes.length > 0 && profile.skills) {
+    skillCheckboxes.forEach(function(cb) {
+      if (profile.skills.indexOf(cb.value) !== -1) cb.checked = true;
+    });
+  }
 
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
@@ -331,7 +435,68 @@ function loadProfile(user, profile) {
       };
       if (document.getElementById("pf-bio")) updateData.bio = document.getElementById("pf-bio").value.trim();
       if (document.getElementById("pf-experience")) updateData.experience = document.getElementById("pf-experience").value.trim();
-      if (document.getElementById("pf-cv")) updateData.cvUrl = document.getElementById("pf-cv").value.trim();
+      
+      if (document.getElementById("pf-languages")) {
+        updateData.languages = document.getElementById("pf-languages").value.split(",").map(function(s) { return s.trim(); }).filter(Boolean);
+      }
+      var checkedSkills = document.querySelectorAll("input[name='pf-skills']:checked");
+      if (checkedSkills.length > 0 || document.querySelectorAll("input[name='pf-skills']").length > 0) {
+        updateData.skills = Array.from(checkedSkills).map(function(cb) { return cb.value; });
+      }
+      
+      var cvFileEl = document.getElementById("pf-cv");
+      if (cvFileEl && cvFileEl.files.length > 0) {
+        status.textContent = "Uploading CV...";
+        
+        // Delete old CV from Drive if it exists
+        if (profile.cvUrl) {
+          var match = profile.cvUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+          if (match && match[1]) {
+            try {
+              var token = await user.getIdToken();
+              await fetch("/api/drive/delete", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+                body: JSON.stringify({ fileId: match[1] })
+              });
+            } catch (delErr) {
+              console.warn("Could not delete old CV", delErr);
+            }
+          }
+        }
+        
+        var formData = new FormData();
+        formData.append("file", cvFileEl.files[0]);
+        formData.append("projectName", "Profile CVs");
+        formData.append("role", updateData.role);
+        formData.append("userName", updateData.name || user.email);
+        formData.append("docType", "CVs");
+
+        var token = await user.getIdToken();
+        var res = await fetch("/api/drive/upload", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + token },
+          body: formData
+        });
+        var result = await res.json();
+        if (!result.id) throw new Error(result.error || "CV Upload failed");
+        updateData.cvUrl = result.link;
+        updateData.cvName = cvFileEl.files[0].name;
+        
+        // Update profile in local cache for consecutive saves
+        profile.cvUrl = result.link;
+        profile.cvName = cvFileEl.files[0].name;
+        
+        if (cvLinkSpan) {
+           cvFileEl.style.display = "none";
+           cvLinkSpan.innerHTML = '<a href="' + esc(result.link) + '" target="_blank">' + esc(cvFileEl.files[0].name) + '</a>' +
+             ' <button type="button" class="btn btn-ghost btn-sm" id="btn-update-cv" style="margin-left:10px; padding: 2px 8px; font-size: 0.8rem;">Update</button>';
+           document.getElementById("btn-update-cv").addEventListener("click", function() {
+             cvFileEl.style.display = "";
+             this.style.display = "none";
+           });
+        }
+      }
       
       await db.collection("users").doc(user.uid).update(updateData);
       status.style.color = "#85ffaa";
@@ -403,93 +568,104 @@ function fmtDate(ts) {
 // ---------------------------------------------------------------------------
 // Available projects - show all active/upcoming with an "Interest" button
 // ---------------------------------------------------------------------------
+let unsubAvailableProjects = null;
+
 async function loadAvailableProjects(user, profile) {
   var container = document.querySelector("[data-portal-projects]");
   if (!container) return;
 
+  if (unsubAvailableProjects) {
+    unsubAvailableProjects();
+    unsubAvailableProjects = null;
+  }
+
   try {
-    var snap = await db.collection("projects").where("status", "in", ["active", "upcoming"]).get();
-    if (snap.empty) {
-      container.innerHTML = '<p class="section-copy">No projects available right now. Check back soon.</p>';
-      return;
-    }
-
-    // Get user's participations to know which they've already joined
-    var partSnap = await db.collection("participations").where("userId", "==", user.uid).get();
-    var joined = {};
-    partSnap.forEach(function (d) { 
-      var part = d.data();
-      var iter = part.iteration || 1;
-      if (!joined[part.projectId] || iter > joined[part.projectId].iteration) {
-        joined[part.projectId] = { id: d.id, iteration: iter };
+    unsubAvailableProjects = db.collection("projects").where("status", "in", ["active", "upcoming"]).onSnapshot(async function(snap) {
+      if (snap.empty) {
+        container.innerHTML = '<p class="section-copy">No projects available right now. Check back soon.</p>';
+        return;
       }
-    });
 
-    var html = "";
-    snap.forEach(function (doc) {
-      var p = doc.data();
-      var projIteration = p.iteration || 1;
-      var isJoined = (joined[doc.id] && joined[doc.id].iteration === projIteration);
-      var statusLabel = (p.status || "active").toUpperCase();
-      var langs = Array.isArray(p.languages) ? p.languages.join(", ") : "";
-      var pay = p.payout || p.pay || "";
-      html +=
-        '<article class="project-card portal-project-card">' +
-        '<div><div class="project-meta">' +
-        '<span class="project-tag">' + esc(p.workType || "Project") + '</span>' +
-        '<span class="status-chip"><span class="status-dot"></span>' + esc(statusLabel) + '</span>' +
-        '</div><h3>' + esc(p.name || "Untitled") + '</h3>' +
-        '<p>' + esc(p.description || "") + '</p>' +
-        (langs ? '<p class="project-langs">Languages: ' + esc(langs) + '</p>' : '') +
-        (pay ? '<p class="project-pay">Payout: ' + esc(pay) + '</p>' : '') +
-        '</div>' +
-        (isJoined
-          ? '<button class="btn btn-primary" data-view-project="' + doc.id + '">View Progress</button>'
-          : '<button class="btn btn-outline" data-join-project="' + doc.id + '">Show Interest</button>') +
-        '</article>';
-    });
-    container.innerHTML = html;
-
-    // Join buttons
-    container.querySelectorAll("[data-join-project]").forEach(function (btn) {
-      btn.addEventListener("click", async function () {
-        var projectId = btn.dataset.joinProject;
-        // Check if project has a custom form
-        var pDoc = await db.collection("projects").doc(projectId).get();
-        var project = pDoc.exists ? pDoc.data() : {};
-        var formFields = Array.isArray(project.formFields) ? project.formFields.filter(function (f) { return f.label; }) : [];
-
-        if (formFields.length > 0) {
-          openJoinFormModal(projectId, project, user, profile, btn);
-        } else {
-          btn.disabled = true;
-          btn.textContent = "Joining...";
-          try {
-            await db.collection("participations").add({
-              userId: user.uid,
-              projectId: projectId,
-              step: 1,
-              status: "interest",
-              iteration: project.iteration || 1,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            btn.textContent = "Joined";
-            btn.classList.remove("btn-outline");
-            btn.classList.add("btn-primary");
-            loadMyProjects(user, profile);
-          } catch (err) {
-            btn.textContent = "Error - try again";
-            btn.disabled = false;
-          }
+      // Get user's participations to know which they've already joined
+      var partSnap = await db.collection("participations").where("userId", "==", user.uid).get();
+      var joined = {};
+      partSnap.forEach(function (d) { 
+        var part = d.data();
+        var iter = part.iteration || 1;
+        if (!joined[part.projectId] || iter > joined[part.projectId].iteration) {
+          joined[part.projectId] = { id: d.id, iteration: iter };
         }
       });
-    });
 
-    // View buttons
-    container.querySelectorAll("[data-view-project]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        openProjectModal(btn.dataset.viewProject, user, profile);
+      var html = "";
+      snap.forEach(function (doc) {
+        var p = doc.data();
+        var projIteration = p.iteration || 1;
+        var isJoined = (joined[doc.id] && joined[doc.id].iteration === projIteration);
+        var statusLabel = (p.status || "active").toUpperCase();
+        var langs = Array.isArray(p.languages) ? p.languages.join(", ") : "";
+        var pay = p.payout || p.pay || "";
+        var rate = p.payoutRate || "";
+        html +=
+          '<article class="project-card portal-project-card">' +
+          '<div><div class="project-meta">' +
+          '<span class="project-tag">' + esc(p.workType || "Project") + '</span>' +
+          '<span class="status-chip"><span class="status-dot"></span>' + esc(statusLabel) + '</span>' +
+          '</div><h3>' + esc(p.name || "Untitled") + '</h3>' +
+          '<p class="project-desc" data-desc-id="' + doc.id + '">' + esc(p.description || "") + '</p>' +
+          '<a class="read-more-link" data-read-more="' + doc.id + '">Read more</a>' +
+          (langs ? '<p class="project-langs">Languages: ' + esc(langs) + '</p>' : '') +
+          (pay ? '<p class="project-pay">Payout: ' + esc(pay) + (rate ? ' (' + esc(rate) + ')' : '') + '</p>' : '') +
+          '</div>' +
+          (isJoined
+            ? '<button class="btn btn-primary" data-view-project="' + doc.id + '">View Progress</button>'
+            : '<button class="btn btn-outline" data-join-project="' + doc.id + '">Show Interest</button>') +
+          '</article>';
       });
+      container.innerHTML = html;
+
+      // Join buttons
+      container.querySelectorAll("[data-join-project]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          var projectId = btn.dataset.joinProject;
+          // Check if project has a custom form
+          var pDoc = await db.collection("projects").doc(projectId).get();
+          var project = pDoc.exists ? pDoc.data() : {};
+          var formFields = Array.isArray(project.formFields) ? project.formFields.filter(function (f) { return f.label; }) : [];
+
+          if (formFields.length > 0) {
+            openJoinFormModal(projectId, project, user, profile, btn);
+          } else {
+            btn.disabled = true;
+            btn.textContent = "Joining...";
+            try {
+              await db.collection("participations").add({
+                userId: user.uid,
+                projectId: projectId,
+                step: 1,
+                status: "interest",
+                iteration: project.iteration || 1,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+              btn.textContent = "Joined";
+              btn.classList.remove("btn-outline");
+              btn.classList.add("btn-primary");
+            } catch (err) {
+              btn.textContent = "Error - try again";
+              btn.disabled = false;
+            }
+          }
+        });
+      });
+
+      // View buttons
+      container.querySelectorAll("[data-view-project]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openProjectModal(btn.dataset.viewProject, user, profile);
+        });
+      });
+    }, function (err) {
+      container.innerHTML = '<p class="section-copy">Could not load projects: ' + esc(err.message) + '</p>';
     });
   } catch (err) {
     container.innerHTML = '<p class="section-copy">Could not load projects: ' + esc(err.message) + '</p>';
@@ -499,44 +675,54 @@ async function loadAvailableProjects(user, profile) {
 // ---------------------------------------------------------------------------
 // My projects - show joined projects with 4-step progress
 // ---------------------------------------------------------------------------
+let unsubMyProjects = null;
+
 async function loadMyProjects(user, profile) {
   var container = document.querySelector("[data-my-projects]");
   if (!container) return;
 
+  if (unsubMyProjects) {
+    unsubMyProjects();
+    unsubMyProjects = null;
+  }
+
   try {
-    var snap = await db.collection("participations").where("userId", "==", user.uid).get();
-    if (snap.empty) {
-      container.innerHTML = '<p class="section-copy">You have not joined any projects yet. Browse Available Projects to get started.</p>';
-      return;
-    }
+    unsubMyProjects = db.collection("participations").where("userId", "==", user.uid).onSnapshot(async function(snap) {
+      if (snap.empty) {
+        container.innerHTML = '<p class="section-copy">You have not joined any projects yet. Browse Available Projects to get started.</p>';
+        return;
+      }
 
-    var html = "";
-    var projectIds = [];
-    snap.forEach(function (d) {
-      var part = d.data();
-      part._partId = d.id;
-      projectIds.push(part.projectId);
-      html += buildMyProjectCard(part);
-    });
-
-    container.innerHTML = html;
-
-    // Load project names
-    for (var i = 0; i < projectIds.length; i++) {
-      try {
-        var pSnap = await db.collection("projects").doc(projectIds[i]).get();
-        if (pSnap.exists) {
-          var nameEl = container.querySelector('[data-pname="' + projectIds[i] + '"]');
-          if (nameEl) nameEl.textContent = pSnap.data().name || "Untitled Project";
-        }
-      } catch (e) { /* skip */ }
-    }
-
-    // View buttons
-    container.querySelectorAll("[data-view-myproject]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        openProjectModal(btn.dataset.viewMyproject, user, profile);
+      var html = "";
+      var projectIds = [];
+      snap.forEach(function (d) {
+        var part = d.data();
+        part._partId = d.id;
+        projectIds.push(part.projectId);
+        html += buildMyProjectCard(part);
       });
+
+      container.innerHTML = html;
+
+      // Load project names
+      for (var i = 0; i < projectIds.length; i++) {
+        try {
+          var pSnap = await db.collection("projects").doc(projectIds[i]).get();
+          if (pSnap.exists) {
+            var nameEl = container.querySelector('[data-pname="' + projectIds[i] + '"]');
+            if (nameEl) nameEl.textContent = pSnap.data().name || "Untitled Project";
+          }
+        } catch (e) { /* skip */ }
+      }
+
+      // View buttons
+      container.querySelectorAll("[data-view-myproject]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openProjectModal(btn.dataset.viewMyproject, user, profile);
+        });
+      });
+    }, function(err) {
+      container.innerHTML = '<p class="section-copy">Could not load your projects: ' + esc(err.message) + '</p>';
     });
   } catch (err) {
     container.innerHTML = '<p class="section-copy">Could not load your projects: ' + esc(err.message) + '</p>';
@@ -555,10 +741,15 @@ function buildMyProjectCard(part) {
   }
   stepHtml += '</div>';
 
+  var credsHtml = part.assignedCredentials 
+    ? '<p class="project-pay" style="color:var(--white);margin-top:10px;"><strong>Credentials:</strong> ' + esc(part.assignedCredentials) + '</p>' 
+    : '';
+
   return (
     '<article class="portal-project-card">' +
     '<div><h3 data-pname="' + part.projectId + '">Loading...</h3>' +
     '<p class="project-status-text">Status: ' + esc(part.status || "interested") + '</p>' +
+    credsHtml +
     stepHtml + '</div>' +
     '<button class="btn btn-primary" data-view-myproject="' + part.projectId + '">Open</button>' +
     '</article>'
@@ -676,7 +867,13 @@ function buildStepFlow(project, part, displayStep, partId, actualStep, isViewOnl
   } else if (displayStep === 2) {
     html += '<h3>Step 2: Training & Agreement</h3>';
     if (project.trainingVideo) {
-      html += '<div class="training-video"><iframe src="' + esc(project.trainingVideo) + '" frameborder="0" allowfullscreen></iframe></div>';
+      var embedUrl = project.trainingVideo;
+      if (embedUrl.includes("drive.google.com") && embedUrl.includes("/view")) {
+        embedUrl = embedUrl.replace(/\/view(\?.*)?$/, "/preview$1");
+      }
+      var dlUrl = project.trainingVideoDownload || project.trainingVideo;
+      html += '<div class="training-video"><iframe src="' + esc(embedUrl) + '" frameborder="0" allowfullscreen></iframe></div>';
+      html += '<div style="margin-top:10px; margin-bottom:20px;"><a href="' + esc(dlUrl) + '" target="_blank" class="btn btn-outline btn-sm" style="background:#07101d;">Watch / Download Video &nearr;</a></div>';
     } else {
       html += '<p>Training materials will be added by the admin. Check back soon.</p>';
     }
@@ -692,7 +889,8 @@ function buildStepFlow(project, part, displayStep, partId, actualStep, isViewOnl
 
     html += '<div class="nda-section">';
     html += '<p>Download, review, and sign the agreement below:</p>';
-    html += '<a class="btn btn-outline" href="VendorAgreement_YugmAI_Draft.docx" download>Download NDA / Service Agreement</a>';
+    var ndaUrl = project.ndaLink || "docs/VendorAgreement_YugmAI_Draft.docx";
+    html += '<a class="btn btn-outline" href="' + esc(ndaUrl) + '" target="_blank">Download NDA / Service Agreement</a>';
     html += '</div>';
     
     if (isViewOnly) {
@@ -725,15 +923,15 @@ function buildStepFlow(project, part, displayStep, partId, actualStep, isViewOnl
       if (project.submissionType === "external") {
         html += '<p>This is an external project. Please confirm when you have completed your work on the external platform.</p>';
         html += '<div class="field"><label for="submit-notes">Notes (optional)</label>';
-        html += '<textarea id="submit-notes" rows="3" placeholder="Any notes about your submission..." data-submit-notes></textarea></div>';
-        html += '<button class="btn btn-primary" data-step-action="submit-work" data-partid="' + partId + '">I have completed work on the external platform</button>';
+        html += '<textarea id="submit-notes" rows="2"></textarea></div>';
+        html += '<button class="btn btn-primary" data-step-action="submit-external" data-partid="' + partId + '">Mark as Completed</button>';
       } else {
-        html += '<p>Upload your completed work via a Google Drive link. Make sure the sharing permissions are set to "Anyone with the link can view".</p>';
-        html += '<div class="field"><label for="drive-link">Google Drive Link</label>';
-        html += '<input id="drive-link" type="url" placeholder="https://drive.google.com/file/d/..." data-drive-input></div>';
-        html += '<div class="field"><label for="submit-notes">Notes (optional)</label>';
-        html += '<textarea id="submit-notes" rows="3" placeholder="Any notes about your submission..." data-submit-notes></textarea></div>';
-        html += '<button class="btn btn-primary" data-step-action="submit-work" data-partid="' + partId + '">Submit Work</button>';
+        html += '<p>Upload your completed work. It will automatically be organized into your specific project folder.</p>';
+        html += '<div class="field"><label for="submit-file">Upload File</label>';
+        html += '<input id="submit-file" type="file"></div>';
+        html += '<div class="field"><label for="submit-notes">Additional Notes (optional)</label>';
+        html += '<textarea id="submit-notes" rows="2"></textarea></div>';
+        html += '<button class="btn btn-primary" id="btn-submit-internal" data-step-action="submit-internal" data-partid="' + partId + '">Submit Work</button>';
       }
     }
   } else if (displayStep === 4) {
@@ -748,7 +946,7 @@ function buildStepFlow(project, part, displayStep, partId, actualStep, isViewOnl
       }
       html += '<p>According to the validation sheet, you can request your payout. Otherwise, if you request incorrect hours, the admin can reject it.</p>';
       html += '<p>Payout terms: ' + esc(project.payout || "As per project agreement") + '</p>';
-      html += '<a class="btn btn-outline" href="Invoice_Template_YugmAI.docx" download>Download Invoice Template</a>';
+      html += '<a class="btn btn-outline" href="docs/Yugm_AI_Invoice_.docx" download>Download Invoice Template</a>';
       
       if (isViewOnly) {
         html += '<div class="field" style="margin-top:16px"><p><strong>Your Submitted Invoice:</strong> <a href="' + esc(part.invoiceUrl || "#") + '" target="_blank">View Invoice</a></p></div>';
@@ -758,9 +956,9 @@ function buildStepFlow(project, part, displayStep, partId, actualStep, isViewOnl
           html += '<strong>Invoice Rejected:</strong> ' + esc(part.invoiceRejectReason || "Please correct and resubmit.") + '</div>';
         }
         
-        html += '<div class="field" style="margin-top:16px"><label for="invoice-link">Invoice Drive Link</label>';
-        html += '<input id="invoice-link" type="url" placeholder="https://drive.google.com/..." data-invoice-input value="' + esc(part.invoiceUrl || "") + '"></div>';
-        html += '<button class="btn btn-primary" data-step-action="submit-invoice" data-partid="' + partId + '">' + (part.invoiceStatus === "rejected" ? "Resubmit Invoice" : "Submit Invoice") + '</button>';
+        html += '<div class="field" style="margin-top:16px"><label for="invoice-file">Upload Invoice</label>';
+        html += '<input id="invoice-file" type="file"></div>';
+        html += '<button class="btn btn-primary" id="btn-submit-invoice" data-step-action="submit-invoice" data-partid="' + partId + '">' + (part.invoiceStatus === "rejected" ? "Resubmit Invoice" : "Submit Invoice") + '</button>';
       }
     }
   } else if (displayStep === 5) {
@@ -817,39 +1015,77 @@ function wireStepActions(projectId, partId, step, user, body, project) {
     });
   }
 
-  // Submit work -> step 4
-  var submitBtn = body.querySelector("[data-step-action='submit-work']");
-  if (submitBtn) {
-    submitBtn.addEventListener("click", async function () {
-      var driveInput = body.querySelector("[data-drive-input]");
-      var notesInput = body.querySelector("[data-submit-notes]");
-      var driveLink = driveInput ? driveInput.value.trim() : "";
-      var notes = notesInput ? notesInput.value.trim() : "";
-      
-      if (project.submissionType !== "external") {
-        if (!driveLink) { uiAlert("Please paste your Google Drive link."); return; }
-        if (!driveLink.includes("drive.google.com") && !driveLink.includes("docs.google.com")) {
-          uiAlert("Please enter a valid Google Drive link.");
-          return;
-        }
-      }
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting...";
+  // Submit external work -> step 4
+  var submitExtBtn = body.querySelector("[data-step-action='submit-external']");
+  if (submitExtBtn) {
+    submitExtBtn.addEventListener("click", async function () {
+      var notes = body.querySelector("#submit-notes") ? body.querySelector("#submit-notes").value.trim() : "";
+      submitExtBtn.disabled = true;
+      submitExtBtn.textContent = "Submitting...";
       try {
         await db.collection("submissions").add({
-          userId: user.uid,
-          projectId: projectId,
-          participationId: partId,
-          driveLink: driveLink,
-          notes: notes,
-          status: "pending-review",
+          userId: user.uid, projectId: projectId, participationId: partId,
+          driveLink: "", notes: notes, status: "pending-review",
           submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
         await db.collection("participations").doc(partId).update({ step: 4, status: "submitted" });
         openProjectModal(projectId, user, {});
       } catch (err) {
-        submitBtn.textContent = "Error - try again";
-        submitBtn.disabled = false;
+        submitExtBtn.textContent = "Error - try again";
+        submitExtBtn.disabled = false;
+      }
+    });
+  }
+
+  // Submit internal work (file upload) -> step 4
+  var submitIntBtn = body.querySelector("[data-step-action='submit-internal']");
+  if (submitIntBtn) {
+    submitIntBtn.addEventListener("click", async function () {
+      var fileInput = body.querySelector("#submit-file");
+      if (!fileInput || !fileInput.files.length) {
+        uiAlert("Please select a file to upload."); return;
+      }
+      var notes = body.querySelector("#submit-notes") ? body.querySelector("#submit-notes").value.trim() : "";
+      submitIntBtn.disabled = true;
+      submitIntBtn.textContent = "Uploading...";
+      
+      try {
+        var file = fileInput.files[0];
+        var formData = new FormData();
+        formData.append("file", file);
+        formData.append("projectName", project.name || "General");
+        
+        var pDoc = await db.collection("users").doc(user.uid).get();
+        var role = pDoc.exists ? pDoc.data().role : "freelancer";
+        var userName = pDoc.exists ? pDoc.data().name : user.email;
+        
+        formData.append("role", role);
+        formData.append("userName", userName);
+        formData.append("docType", "Submissions");
+
+        var currentUser = getAuth().currentUser;
+        var token = await currentUser.getIdToken();
+        
+        var res = await fetch("/api/drive/upload", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + token },
+          body: formData
+        });
+        
+        var result = await res.json();
+        if (!result.ok) throw new Error(result.error || "Upload failed");
+        
+        await db.collection("submissions").add({
+          userId: user.uid, projectId: projectId, participationId: partId,
+          driveLink: result.url, notes: notes, status: "pending-review",
+          submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        await db.collection("participations").doc(partId).update({ step: 4, status: "submitted" });
+        openProjectModal(projectId, user, {});
+      } catch (err) {
+        uiAlert("Upload Error: " + err.message);
+        submitIntBtn.textContent = "Error - try again";
+        submitIntBtn.disabled = false;
       }
     });
   }
@@ -858,21 +1094,48 @@ function wireStepActions(projectId, partId, step, user, body, project) {
   var invoiceBtn = body.querySelector("[data-step-action='submit-invoice']");
   if (invoiceBtn) {
     invoiceBtn.addEventListener("click", async function () {
-      var invoiceInput = body.querySelector("[data-invoice-input]");
-      var invoiceLink = invoiceInput ? invoiceInput.value.trim() : "";
-      if (!invoiceLink) { uiAlert("Please paste your invoice link."); return; }
+      var fileInput = body.querySelector("#invoice-file");
+      if (!fileInput || !fileInput.files.length) {
+        uiAlert("Please select your invoice file to upload."); return;
+      }
       invoiceBtn.disabled = true;
-      invoiceBtn.textContent = "Submitting...";
+      invoiceBtn.textContent = "Uploading...";
       try {
+        var file = fileInput.files[0];
+        var formData = new FormData();
+        formData.append("file", file);
+        formData.append("projectName", project.name || "General");
+        
+        var pDoc = await db.collection("users").doc(user.uid).get();
+        var role = pDoc.exists ? pDoc.data().role : "freelancer";
+        var userName = pDoc.exists ? pDoc.data().name : user.email;
+        
+        formData.append("role", role);
+        formData.append("userName", userName);
+        formData.append("docType", "Invoices");
+
+        var currentUser = getAuth().currentUser;
+        var token = await currentUser.getIdToken();
+        
+        var res = await fetch("/api/drive/upload", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + token },
+          body: formData
+        });
+        
+        var result = await res.json();
+        if (!result.ok) throw new Error(result.error || "Upload failed");
+
         await db.collection("participations").doc(partId).update({
+          invoiceUrl: result.url,
+          invoiceStatus: "submitted",
           step: 5,
-          invoiceUrl: invoiceLink,
           invoiceSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
           status: "invoice-submitted",
-          invoiceStatus: "submitted",
         });
         openProjectModal(projectId, user, {});
       } catch (err) {
+        uiAlert("Upload Error: " + err.message);
         invoiceBtn.textContent = "Error - try again";
         invoiceBtn.disabled = false;
       }
@@ -883,48 +1146,42 @@ function wireStepActions(projectId, partId, step, user, body, project) {
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
+let unsubUserMessages = null;
+
 async function loadMessages(user, profile) {
   var thread = document.querySelector("[data-message-thread]");
   var form = document.querySelector("[data-message-form]");
   if (!thread) return;
 
+  if (unsubUserMessages) {
+    unsubUserMessages();
+    unsubUserMessages = null;
+  }
+
   try {
-    var snap = await db.collection("messages").doc(user.uid).collection("items")
-      .orderBy("createdAt", "asc").limit(50).get();
+    // Reset unreadUser count
+    await db.collection("messages").doc(user.uid).set({ unreadUser: 0 }, { merge: true }).catch(function(){});
 
-    if (snap.empty) {
-      thread.innerHTML = '<p class="section-copy">No messages yet. Use the form below to contact the YUGM AI team.</p>';
-    } else {
-      var html = "";
-      snap.forEach(function (d) {
-        var m = d.data();
-        var sender = m.sender === "admin" ? "YUGM AI" : "You";
-        var cls = m.sender === "admin" ? "msg-admin" : "msg-user";
-        html += '<div class="msg-item ' + cls + '"><strong>' + esc(sender) + '</strong><p>' + esc(m.text || "") + '</p></div>';
-      });
-      thread.innerHTML = html;
-      thread.scrollTop = thread.scrollHeight;
-    }
-
-    // Real-time listener for new messages
-    db.collection("messages").doc(user.uid).collection("items")
-      .orderBy("createdAt", "asc").limitToLast(1)
-      .onSnapshot(function (snap) {
-        snap.docChanges().forEach(function (change) {
-          if (change.type === "added") {
-            var m = change.doc.data();
-            var sender = m.sender === "admin" ? "YUGM AI" : "You";
-            var cls = m.sender === "admin" ? "msg-admin" : "msg-user";
-            var div = document.createElement("div");
-            div.className = "msg-item " + cls;
-            div.innerHTML = "<strong>" + esc(sender) + "</strong><p>" + esc(m.text || "") + "</p>";
-            thread.appendChild(div);
-            thread.scrollTop = thread.scrollHeight;
-          }
+    unsubUserMessages = db.collection("messages").doc(user.uid).collection("items")
+      .orderBy("createdAt", "asc").limit(100).onSnapshot(function (snap) {
+        if (snap.empty) {
+          thread.innerHTML = '<p class="section-copy">No messages yet. Use the form below to contact the YUGM AI team.</p>';
+          return;
+        }
+        var html = "";
+        snap.forEach(function (d) {
+          var m = d.data();
+          var sender = m.sender === "admin" ? "YUGM AI" : "You";
+          var cls = m.sender === "admin" ? "msg-admin" : "msg-user";
+          html += '<div class="msg-item ' + cls + '"><strong>' + esc(sender) + '</strong><p>' + esc(m.text || "") + '</p></div>';
         });
+        thread.innerHTML = html;
+        thread.scrollTop = thread.scrollHeight;
+      }, function (err) {
+        thread.innerHTML = '<p class="section-copy">Error loading messages: ' + esc(err.message) + '</p>';
       });
   } catch (err) {
-    thread.innerHTML = '<p class="section-copy">Could not load messages: ' + esc(err.message) + '</p>';
+    thread.innerHTML = '<p class="section-copy">Error loading messages: ' + esc(err.message) + '</p>';
   }
 
   if (form) {
@@ -953,6 +1210,7 @@ async function loadMessages(user, profile) {
           userName: profile.name || user.email,
           lastMessage: text,
           lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+          unreadAdmin: firebase.firestore.FieldValue.increment(1)
         }, { merge: true });
 
         if (isFirst) {
@@ -1127,63 +1385,74 @@ function openJoinFormModal(projectId, project, user, profile, btn) {
 // ---------------------------------------------------------------------------
 // Portal Payments
 // ---------------------------------------------------------------------------
+let unsubPortalPayments = null;
+
 async function loadPortalPayments(user, profile) {
   var container = document.querySelector("[data-portal-payments]");
   if (!container) return;
+  
+  if (unsubPortalPayments) {
+    unsubPortalPayments();
+    unsubPortalPayments = null;
+  }
   container.innerHTML = "<p>Loading...</p>";
   
   try {
-    var snap = await db.collection("participations").where("userId", "==", user.uid).get();
-    if (snap.empty) { container.innerHTML = "<p>No payment information found.</p>"; return; }
-    
-    var rows = [];
     var pSnap = await db.collection("projects").get();
     var projects = {};
     pSnap.forEach(function(d) { projects[d.id] = d.data(); });
     
-    snap.forEach(function (d) {
-      var pData = d.data();
-      var proj = projects[pData.projectId] || {};
+    unsubPortalPayments = db.collection("participations").where("userId", "==", user.uid).onSnapshot(function(snap) {
+      if (snap.empty) { container.innerHTML = "<p>No payment information found.</p>"; return; }
       
-      var isEnded = proj.status === "ended";
-      var invStatus = pData.invoiceStatus || (isEnded ? "pending_request" : "waiting_project_end");
+      var rows = [];
       
-      var statusBadgeStr = "";
-      if (invStatus === "waiting_project_end") statusBadgeStr = '<span class="badge badge-warning">Waiting for completion</span>';
-      else if (invStatus === "pending_request") statusBadgeStr = '<span class="badge badge-neutral">Ready for Request</span>';
-      else if (invStatus === "requested") statusBadgeStr = '<span class="badge badge-danger">Action Required</span>';
-      else if (invStatus === "submitted") statusBadgeStr = '<span class="badge badge-success">Processing (ETA: 7 Days)</span>';
-      else if (invStatus === "paid") statusBadgeStr = '<span class="badge badge-success">Paid</span>';
-      
-      var actions = "";
-      if (invStatus === "requested") {
-        actions = `
-          <a href="#" class="btn btn-ghost btn-sm" style="display:block; margin-bottom:0.5rem;" onclick="uiAlert('Template will be downloaded.')">Download Template</a>
-          <button class="btn btn-primary btn-sm" style="display:block; width:100%; text-align:center;" onclick="submitInvoiceLink('${d.id}')">Submit Invoice Link</button>
-        `;
-      } else if (invStatus === "submitted" || invStatus === "paid") {
-        actions = '<a href="' + esc(pData.invoiceDocUrl) + '" target="_blank" class="btn btn-ghost btn-sm" style="display:block; text-align:center;">View Invoice Link</a>';
-      } else if (invStatus === "pending_request") {
-        actions = '<p class="cell-sub" style="text-align:center; font-size:0.9rem;">The admin will request your invoice soon.</p>';
-      } else if (invStatus === "waiting_project_end") {
-        actions = '<p class="cell-sub" style="text-align:center; font-size:0.9rem;">Invoice processing begins after project ends.</p>';
-      }
-      
-      rows.push(`
-        <div class="card">
-          <div class="card-content">
-            <h4>${esc(proj.name || pData.projectId)}</h4>
-            <p style="margin-top:0.5rem; margin-bottom:0.5rem;"><strong>Status:</strong> ${statusBadgeStr}</p>
+      snap.forEach(function (d) {
+        var pData = d.data();
+        var proj = projects[pData.projectId] || {};
+        
+        var isEnded = proj.status === "ended";
+        var invStatus = pData.invoiceStatus || (isEnded ? "pending_request" : "waiting_project_end");
+        
+        var statusBadgeStr = "";
+        if (invStatus === "waiting_project_end") statusBadgeStr = '<span class="badge badge-warning">Waiting for completion</span>';
+        else if (invStatus === "pending_request") statusBadgeStr = '<span class="badge badge-neutral">Ready for Request</span>';
+        else if (invStatus === "requested") statusBadgeStr = '<span class="badge badge-danger">Action Required</span>';
+        else if (invStatus === "submitted") statusBadgeStr = '<span class="badge badge-success">Processing (ETA: 7 Days)</span>';
+        else if (invStatus === "paid") statusBadgeStr = '<span class="badge badge-success">Paid</span>';
+        
+        var actions = "";
+        if (invStatus === "requested") {
+          actions = `
+            <a href="#" class="btn btn-ghost btn-sm" style="display:block; margin-bottom:0.5rem;" onclick="uiAlert('Template will be downloaded.')">Download Template</a>
+            <button class="btn btn-primary btn-sm" style="display:block; width:100%; text-align:center;" onclick="submitInvoiceLink('${d.id}')">Submit Invoice Link</button>
+          `;
+        } else if (invStatus === "submitted" || invStatus === "paid") {
+          actions = '<a href="' + esc(pData.invoiceDocUrl) + '" target="_blank" class="btn btn-ghost btn-sm" style="display:block; text-align:center;">View Invoice Link</a>';
+        } else if (invStatus === "pending_request") {
+          actions = '<p class="cell-sub" style="text-align:center; font-size:0.9rem;">The admin will request your invoice soon.</p>';
+        } else if (invStatus === "waiting_project_end") {
+          actions = '<p class="cell-sub" style="text-align:center; font-size:0.9rem;">Invoice processing begins after project ends.</p>';
+        }
+        
+        rows.push(`
+          <div class="card">
+            <div class="card-content">
+              <h4>${esc(proj.name || pData.projectId)}</h4>
+              <p style="margin-top:0.5rem; margin-bottom:0.5rem;"><strong>Status:</strong> ${statusBadgeStr}</p>
+            </div>
+            <div class="card-footer" style="flex-direction:column; align-items:stretch;">
+              ${actions}
+            </div>
           </div>
-          <div class="card-footer" style="flex-direction:column; align-items:stretch;">
-            ${actions}
-          </div>
-        </div>
-      `);
+        `);
+      });
+      
+      if (!rows.length) { container.innerHTML = "<p>No payment information found.</p>"; return; }
+      container.innerHTML = '<div class="card-grid">' + rows.join("") + '</div>';
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
-    
-    if (!rows.length) { container.innerHTML = "<p>No payment information found.</p>"; return; }
-    container.innerHTML = '<div class="card-grid">' + rows.join("") + '</div>';
     
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
@@ -1210,9 +1479,7 @@ window.submitInvoiceLink = async function(docId) {
     });
     
     await uiAlert("Invoice link submitted successfully. Expected payout in 7-8 days.");
-    window.location.reload();
   } catch(e) {
     uiAlert("Error submitting invoice: " + e.message);
-    window.location.reload();
   }
 }

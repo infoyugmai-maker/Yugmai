@@ -56,7 +56,7 @@ function initLoginPage(form, status, googleBtn) {
         } else {
           status.style.color = "#85ffaa";
           status.textContent = "Completing your registration...";
-          window.location.href = "register.html?complete=1";
+          window.location.href = "/register?complete=1";
         }
       } catch (err) {
         console.error("[login] onAuthStateChanged error:", err);
@@ -70,7 +70,7 @@ function initLoginPage(form, status, googleBtn) {
       if (result.isNew) {
         status.style.color = "#85ffaa";
         status.textContent = "New account. Completing registration...";
-        window.location.href = "register.html?complete=1";
+        window.location.href = "/register?complete=1";
       } else {
         status.style.color = "#85ffaa";
         status.textContent = "Signed in. Loading your workspace...";
@@ -94,7 +94,7 @@ function initLoginPage(form, status, googleBtn) {
       status.style.color = "#85ffaa";
       status.textContent = "Signed in. Loading your workspace...";
       var done = await redirectAfterAuth(user);
-      if (!done) window.location.href = "register.html?complete=1";
+      if (!done) window.location.href = "/register?complete=1";
     } catch (err) {
       console.error("[login] email sign-in error:", err.code, err.message);
       fail(status, authError(err.code));
@@ -115,7 +115,7 @@ function initLoginPage(form, status, googleBtn) {
       if (result.isNew) {
         status.style.color = "#85ffaa";
         status.textContent = "New account. Completing registration...";
-        window.location.href = "register.html?complete=1";
+        window.location.href = "/register?complete=1";
       } else {
         status.style.color = "#85ffaa";
         status.textContent = "Signed in. Loading your workspace...";

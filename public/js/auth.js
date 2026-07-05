@@ -161,7 +161,7 @@ async function logSignIn(user, method) {
 
 // Where to send a user after auth based on their role.
 function routeForRole(role) {
-  return role === "admin" ? "admin.html" : "portal.html";
+  return role === "admin" ? "/admin" : "/portal";
 }
 
 async function redirectAfterAuth(user) {
@@ -292,11 +292,9 @@ async function completeGoogleProfile(user, { phone, accountType, companyName }) 
   await logSignIn(user, "google");
 }
 
-function logout() {
-  return waitForFirebase().then(function () {
-    return getAuthModule().signOut(getAuth()).then(function () { window.location.href = "index.html"; });
-  });
-}
+window.logout = function () {
+  return getAuthModule().signOut(getAuth()).then(function () { window.location.href = "/"; });
+};
 
 // ---------------------------------------------------------------------------
 // Route guard - call on protected pages.
@@ -307,7 +305,7 @@ function logout() {
 function guardPage(requirement, onReady) {
   onAuthChange(async (user) => {
     if (!user) {
-      window.location.href = "login.html";
+      window.location.href = "/login";
       return;
     }
     const profile = await getUserDoc(user.uid);
@@ -316,18 +314,15 @@ function guardPage(requirement, onReady) {
     if (!role) {
       // Signed in but no profile or no role (incomplete signup / legacy user
       // who registered before portals existed) — send to complete registration.
-      window.location.href = "register.html?complete=1";
+      window.location.href = "/register?complete=1";
       return;
     }
     if (requirement === "admin" && role !== "admin") {
-      window.location.href = "portal.html";
+      window.location.href = "/portal";
       return;
     }
     
-    if (requirement === "any" && role === "admin") {
-      window.location.href = "admin.html";
-      return;
-    }
+    // Allow admins to use the portal as well. We'll add an Admin link to the header instead.
     
     // Auto-provision missing profile object so onReady doesn't fail
     const safeProfile = profile || { role: "admin", email: user.email, name: "Admin" };
@@ -369,8 +364,8 @@ function initHeaderAuthState() {
     var navActions = document.querySelector(".nav-actions");
     if (!navActions) return;
 
-    var loginBtn = navActions.querySelector('a[href="login.html"]');
-    var registerBtn = navActions.querySelector('a[href="register.html"]');
+    var loginBtn = navActions.querySelector('a[href="/login"]');
+    var registerBtn = navActions.querySelector('a[href="/register"]');
 
     if (user) {
       var profile = null;
@@ -378,11 +373,22 @@ function initHeaderAuthState() {
       var displayName = (profile && profile.name) || user.displayName || user.email.split("@")[0];
       var initials = getInitials(displayName);
       var role = (profile && profile.role) || (isAdminEmail(user.email) ? "admin" : null);
-      var destination = role ? routeForRole(role) : "register.html?complete=1";
+      var destination = role ? routeForRole(role) : "/register?complete=1";
 
       // Hide login/register, show profile button
       if (loginBtn) loginBtn.style.display = "none";
       if (registerBtn) registerBtn.style.display = "none";
+
+      // Add Admin Panel link if admin
+      if (role === "admin") {
+        var primaryNav = document.querySelector(".primary-nav");
+        if (primaryNav && !primaryNav.querySelector('a[href="/admin"]')) {
+          var adminLink = document.createElement("a");
+          adminLink.href = "/admin";
+          adminLink.textContent = "Admin Panel";
+          primaryNav.appendChild(adminLink);
+        }
+      }
 
       // Don't add twice
       if (!navActions.querySelector("[data-profile-btn]")) {
@@ -580,6 +586,77 @@ function buildNotifBell(user) {
   });
 
   loadNotifCount(user, countEl);
+  
+  if (window.location.pathname.indexOf("/portal") !== -1 || window.location.pathname.indexOf("portal.html") !== -1) {
+    showUnreadModalIfAny(user, listEl, countEl);
+  }
+}
+
+async function showUnreadModalIfAny(user, listEl, countEl) {
+  try {
+    var fs = getFirestoreModule();
+    var q = fs.query(fs.collection(getDb(), "notifications"), fs.orderBy("createdAt", "desc"));
+    var snap = await fs.getDocs(q);
+    if (snap.empty) return;
+    
+    var readQ = fs.query(fs.collection(getDb(), "notificationReads"), fs.where("userId", "==", user.uid));
+    var readSnap = await fs.getDocs(readQ);
+    var readIds = {};
+    readSnap.forEach(function (d) { readIds[d.data().notifId] = true; });
+    
+    var unreadNotifs = [];
+    snap.forEach(function (d) {
+      var n = d.data();
+      if (!readIds[d.id] && (n.audience === "all" || n.audience === user.role || n.audience === user.uid)) {
+        unreadNotifs.push({ id: d.id, data: n });
+      }
+    });
+    
+    if (unreadNotifs.length > 0) {
+      var overlay = document.createElement("div");
+      overlay.className = "full-screen-modal-overlay";
+      
+      var content = document.createElement("div");
+      content.className = "full-screen-modal-content";
+      content.style.maxWidth = "500px";
+      
+      var html = '<h2 style="margin-bottom:20px;">New Notifications</h2><div style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px;">';
+      
+      unreadNotifs.forEach(function(n) {
+        html += '<div style="background:var(--ink-3); padding:15px; border-radius:8px; margin-bottom:10px; border:1px solid var(--line);">';
+        html += '<h4 style="margin:0 0 5px 0;">' + esc(n.data.title || "") + '</h4>';
+        html += '<p style="margin:0; font-size:0.95rem;">' + esc(n.data.body || "") + '</p>';
+        if (n.data.link) {
+          html += '<a href="' + esc(n.data.link) + '" style="color:var(--blue-2); font-size:0.9rem; display:block; margin-top:8px;">View details &rarr;</a>';
+        }
+        html += '</div>';
+      });
+      
+      html += '</div>';
+      html += '<button id="got-it-btn" class="btn btn-primary" style="width:100%;">Got it!</button>';
+      
+      content.innerHTML = html;
+      overlay.appendChild(content);
+      document.body.appendChild(overlay);
+      
+      overlay.querySelector("#got-it-btn").addEventListener("click", async function() {
+        this.textContent = "Marking as read...";
+        this.disabled = true;
+        for (var i = 0; i < unreadNotifs.length; i++) {
+          var nid = unreadNotifs[i].id;
+          await fs.setDoc(fs.doc(getDb(), "notificationReads", user.uid + "_" + nid), {
+            userId: user.uid, notifId: nid,
+            readAt: fs.serverTimestamp(),
+          });
+        }
+        document.body.removeChild(overlay);
+        loadNotifCount(user, countEl);
+        loadNotifs(user, listEl, countEl);
+      });
+    }
+  } catch (e) {
+    console.warn("Could not check unread notifications:", e);
+  }
 }
 
 async function loadNotifCount(user, countEl) {

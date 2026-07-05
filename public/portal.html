@@ -33,6 +33,10 @@
             </div>
         </header>
 
+        <div id="profile-completion-banner" style="display: none; background-color: rgba(255,193,7,0.1); border-bottom: 1px solid rgba(255,193,7,0.3); color: #ffc107; text-align: center; padding: 10px; font-size: 0.9rem;">
+            Please complete your profile by adding your languages and skills in the <a href="#" onclick="document.querySelector('[data-tab=\'profile\']').click(); return false;" style="color: #ffc107; text-decoration: underline;">Profile</a> tab.
+        </div>
+
         <main class="page-main">
             <section class="section portal-header-section">
                 <div class="container">
@@ -110,8 +114,8 @@
                                     <input id="sw-hours" type="number" min="0" step="0.5" required>
                                 </div>
                                 <div class="field">
-                                    <label for="sw-link">Work Done Link</label>
-                                    <input id="sw-link" type="url" placeholder="https://drive.google.com/..." required>
+                                    <label for="sw-file">Upload Work Done</label>
+                                    <input id="sw-file" type="file" required>
                                 </div>
                             </div>
                             <div class="field">
@@ -166,9 +170,41 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="field"><label for="pf-bio">Bio / About Me</label><textarea id="pf-bio" rows="3"></textarea></div>
+                            <div class="field"><label for="pf-bio">Bio / About Me</label><textarea id="pf-bio" rows="5"></textarea></div>
+                            <div class="field">
+                                <label for="pf-languages">Languages you can provide (comma-separated)</label>
+                                <input id="pf-languages" type="text" placeholder="English, Hindi, Urdu, etc.">
+                            </div>
+                            <div class="field">
+                                <label>Services & Skills</label>
+                                <div class="skills-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Data Collection"> Data Collection</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Data Annotation"> Data Annotation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Video Annotation"> Video Annotation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Audio Annotation"> Audio Annotation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Text Annotation"> Text Annotation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Data Labeling"> Data Labeling</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Audio & Speech Services"> Audio & Speech Services</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Transcription"> Transcription</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Translation"> Translation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="AI Evaluation"> AI Evaluation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="RLHF"> RLHF</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Content Moderation"> Content Moderation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Computer Vision"> Computer Vision</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Autonomous Vehicle Data"> Autonomous Vehicle Data</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Medical AI Data"> Medical AI Data</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="OCR & Document AI"> OCR & Document AI</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Search & Recommendation AI"> Search & Recommendation AI</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Generative AI Data"> Generative AI Data</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Human Evaluation"> Human Evaluation</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Knowledge & Language Tasks"> Knowledge & Language Tasks</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Code & Technical AI"> Code & Technical AI</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="3D & Spatial AI"> 3D & Spatial AI</label>
+                                    <label style="display: flex; gap: 8px; font-weight: normal; font-size: 0.9rem; cursor: pointer; align-items: center;"><input type="checkbox" name="pf-skills" value="Quality Assurance QA"> Quality Assurance QA</label>
+                                </div>
+                            </div>
                             <div class="field"><label for="pf-experience">Work Experience</label><textarea id="pf-experience" rows="3"></textarea></div>
-                            <div class="field"><label for="pf-cv">CV / Resume Link (Google Drive)</label><input id="pf-cv" type="url" placeholder="https://drive.google.com/..."></div>
+                            <div class="field"><label for="pf-cv">Upload CV / Resume <span id="pf-cv-link" style="font-size:0.8rem; font-weight:normal; margin-left: 10px;"></span></label><input id="pf-cv" type="file" accept=".pdf,.doc,.docx"></div>
                             <button class="btn btn-primary" type="submit">Save Changes</button>
                             <p class="auth-status" data-profile-status aria-live="polite"></p>
                         </form>

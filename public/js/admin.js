@@ -139,6 +139,22 @@ function initAdmin(user, profile) {
     });
   });
 
+  // Admin unread messages badge
+  var msgTab = document.querySelector('[data-admin-tabs] [data-tab="messages"]');
+  if (msgTab) {
+    db.collection("messages").where("unreadAdmin", ">", 0).onSnapshot(function(snap) {
+      var totalUnread = 0;
+      snap.forEach(function(doc) {
+        totalUnread += (doc.data().unreadAdmin || 0);
+      });
+      if (totalUnread > 0) {
+        msgTab.innerHTML = 'Messages <span class="badge" style="background:#ff4757;color:#fff;border-radius:12px;padding:2px 6px;font-size:0.75rem;margin-left:4px;">' + totalUnread + '</span>';
+      } else {
+        msgTab.innerHTML = 'Messages';
+      }
+    });
+  }
+
   // Add project button
   var addBtn = document.querySelector("[data-add-project]");
   if (addBtn) addBtn.addEventListener("click", function () { openProjectEditor(null); });
@@ -253,22 +269,33 @@ async function loadOverview() {
 // ---------------------------------------------------------------------------
 // Projects CRUD
 // ---------------------------------------------------------------------------
+let unsubAdminProjects = null;
+
 async function loadAdminProjects() {
   var container = document.querySelector("[data-admin-projects]");
   if (!container) return;
+
+  if (unsubAdminProjects) {
+    unsubAdminProjects();
+    unsubAdminProjects = null;
+  }
+  
   container.innerHTML = "<p>Loading...</p>";
 
-  var search = (document.querySelector("[data-project-search]") || {}).value || "";
-  search = search.trim().toLowerCase();
+  var searchInput = document.querySelector("[data-project-search]");
+  
+  function renderProjects() {
+    var search = (searchInput ? searchInput.value : "").trim().toLowerCase();
 
-  try {
-    var snap = await db.collection("projects").orderBy("createdAt", "desc").get();
-    projectCache = {};
-    snap.forEach(function (d) { projectCache[d.id] = d.data(); });
+    var projList = Object.keys(projectCache).map(k => ({id: k, ...projectCache[k]}));
+    projList.sort(function(a, b) {
+      var ta = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+      var tb = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+      return tb - ta;
+    });
 
     var rows = [];
-    snap.forEach(function (doc) {
-      var p = doc.data();
+    projList.forEach(function (p) {
       if (search && (p.name || "").toLowerCase().indexOf(search) === -1) return;
       var langs = Array.isArray(p.languages) ? p.languages.join(", ") : "";
       rows.push('<tr>' +
@@ -278,11 +305,11 @@ async function loadAdminProjects() {
         '<td>' + esc(langs) + '</td>' +
         '<td>' + esc(p.payout || p.pay || "") + '</td>' +
         '<td class="actions-cell">' +
-        '<button class="btn btn-ghost btn-sm" data-edit-project="' + doc.id + '">Edit</button>' +
+        '<button class="btn btn-ghost btn-sm" data-edit-project="' + p.id + '">Edit</button>' +
         (p.status === "active" 
-          ? '<button class="btn btn-ghost btn-sm" data-end-project="' + doc.id + '">End</button>'
-          : '<button class="btn btn-ghost btn-sm" data-restart-project="' + doc.id + '">Restart</button>') +
-        '<button class="btn btn-ghost btn-sm btn-danger" data-delete-project="' + doc.id + '">Delete</button>' +
+          ? '<button class="btn btn-ghost btn-sm" data-end-project="' + p.id + '">End</button>'
+          : '<button class="btn btn-ghost btn-sm" data-restart-project="' + p.id + '">Restart</button>') +
+        '<button class="btn btn-ghost btn-sm btn-danger" data-delete-project="' + p.id + '">Delete</button>' +
         '</td></tr>');
     });
 
@@ -294,6 +321,7 @@ async function loadAdminProjects() {
     container.querySelectorAll("[data-edit-project]").forEach(function (btn) {
       btn.addEventListener("click", function () { openProjectEditor(btn.dataset.editProject); });
     });
+    
     container.querySelectorAll("[data-end-project]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         if (!(await uiConfirm("End this project? This will hide it from the active list and notify participants."))) return;
@@ -303,8 +331,6 @@ async function loadAdminProjects() {
         try {
           await db.collection("projects").doc(pid).update({ status: "ended" });
           await notifyEnrolledUsers(pid, "Project Ended", "A project you were participating in has officially ended.", "portal.html");
-          projectCache = {};
-          loadAdminProjects();
         } catch (e) {
           uiAlert("Error ending project: " + e.message);
           btn.textContent = "End";
@@ -324,8 +350,6 @@ async function loadAdminProjects() {
           var newIter = (p.iteration || 1) + 1;
           await db.collection("projects").doc(pid).update({ status: "active", iteration: newIter });
           await notifyEnrolledUsers(pid, "Project Restarted", "A project you previously worked on has restarted for a new cycle! You can now join it again.", "portal.html");
-          projectCache = {};
-          loadAdminProjects();
         } catch (e) {
           uiAlert("Error restarting project: " + e.message);
           btn.textContent = "Restart";
@@ -338,9 +362,26 @@ async function loadAdminProjects() {
       btn.addEventListener("click", async function () {
         if (!(await uiConfirm("Delete this project?"))) return;
         await db.collection("projects").doc(btn.dataset.deleteProject).delete();
-        projectCache = {};
-        loadAdminProjects();
       });
+    });
+  }
+
+  if (searchInput) {
+    var newSearch = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newSearch, searchInput);
+    searchInput = newSearch;
+    newSearch.addEventListener("input", renderProjects);
+  }
+
+  try {
+    unsubAdminProjects = db.collection("projects").orderBy("createdAt", "desc").onSnapshot(function(snap) {
+      snap.docChanges().forEach(function(change) {
+        if (change.type === "removed") { delete projectCache[change.doc.id]; }
+        else { projectCache[change.doc.id] = change.doc.data(); }
+      });
+      renderProjects();
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
@@ -391,9 +432,12 @@ async function openProjectEditor(projectId) {
     '<div class="field"><label for="p-deadline">Deadline (optional)</label><input id="p-deadline" type="date" value="' + esc(project.deadline || "") + '"></div></div>' +
     '<div class="field"><label for="p-desc">Description</label><textarea id="p-desc" rows="4">' + esc(project.description || "") + '</textarea></div>' +
     '<div class="field"><label for="p-langs">Languages (comma-separated)</label><input id="p-langs" value="' + esc(Array.isArray(project.languages) ? project.languages.join(", ") : "") + '"></div>' +
-    '<div class="field"><label for="p-pay">Payout terms</label><input id="p-pay" value="' + esc(project.payout || "") + '"></div>' +
-    '<div class="field"><label for="p-video">Training Video URL (YouTube/Drive embed)</label><input id="p-video" value="' + esc(project.trainingVideo || "") + '"></div>' +
-    (project.trainingVideo ? '<div class="training-video" style="margin-bottom:12px; pointer-events:none;"><iframe src="' + esc(project.trainingVideo) + '" frameborder="0"></iframe></div>' : '') +
+    '<div class="field-grid">' +
+    '<div class="field"><label for="p-pay">Payout terms (e.g. 30 days)</label><input id="p-pay" value="' + esc(project.payout || "") + '"></div>' +
+    '<div class="field"><label for="p-pay-rate">Payout Rate (e.g. $10/hour)</label><input id="p-pay-rate" value="' + esc(project.payoutRate || "") + '"></div></div>' +
+    '<div class="field-grid">' +
+    '<div class="field"><label for="p-video-file">Upload Training Video ' + (project.trainingVideo ? '<a href="' + esc(project.trainingVideo) + '" target="_blank" style="font-size:0.8rem;margin-left:8px;font-weight:normal;">(View Current)</a>' : '') + '</label><input type="file" id="p-video-file" accept="video/*,audio/*"></div>' +
+    '<div class="field"><label for="p-nda-file">Upload NDA/Agreement ' + (project.ndaLink ? '<a href="' + esc(project.ndaLink) + '" target="_blank" style="font-size:0.8rem;margin-left:8px;font-weight:normal;">(View Current)</a>' : '') + '</label><input type="file" id="p-nda-file" accept=".pdf,.doc,.docx"></div></div>' +
 
     // Custom form builder section
     '<div class="form-builder" data-form-builder>' +
@@ -450,7 +494,7 @@ async function openProjectEditor(projectId) {
       description: body.querySelector("#p-desc").value.trim(),
       languages: body.querySelector("#p-langs").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean),
       payout: body.querySelector("#p-pay").value.trim(),
-      trainingVideo: body.querySelector("#p-video").value.trim(),
+      payoutRate: body.querySelector("#p-pay-rate").value.trim(),
       submissionType: body.querySelector("#p-submission-type").value,
       requireCredentials: body.querySelector("#p-require-creds").checked,
       externalLink: body.querySelector("#p-external-link").value.trim(),
@@ -460,6 +504,46 @@ async function openProjectEditor(projectId) {
     };
 
     try {
+      var projName = data.name || "Untitled";
+      var tk = await getAuth().currentUser.getIdToken();
+      
+      var videoFileEl = body.querySelector("#p-video-file");
+      if (videoFileEl && videoFileEl.files.length > 0) {
+        saveBtn.textContent = "Uploading Video...";
+        if (project.trainingVideo) {
+          var oldVMatch = project.trainingVideo.match(/\/d\/([a-zA-Z0-9_-]+)/);
+          if (oldVMatch && oldVMatch[1]) {
+            try { await fetch("/api/drive/delete", { method: "POST", headers: { "Authorization": "Bearer " + tk, "Content-Type": "application/json" }, body: JSON.stringify({ fileId: oldVMatch[1] }) }); } catch(e){}
+          }
+        }
+        var vData = new FormData();
+        vData.append("file", videoFileEl.files[0]);
+        vData.append("role", "admin");
+        vData.append("projectName", projName);
+        vData.append("docType", "Training");
+        var vRes = await fetch("/api/drive/upload", { method: "POST", headers: { "Authorization": "Bearer " + tk }, body: vData });
+        if(vRes.ok) { var vj = await vRes.json(); data.trainingVideo = vj.link; data.trainingVideoDownload = vj.download; }
+      }
+      
+      var ndaFileEl = body.querySelector("#p-nda-file");
+      if (ndaFileEl && ndaFileEl.files.length > 0) {
+        saveBtn.textContent = "Uploading NDA...";
+        if (project.ndaLink) {
+          var oldNMatch = project.ndaLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+          if (oldNMatch && oldNMatch[1]) {
+            try { await fetch("/api/drive/delete", { method: "POST", headers: { "Authorization": "Bearer " + tk, "Content-Type": "application/json" }, body: JSON.stringify({ fileId: oldNMatch[1] }) }); } catch(e){}
+          }
+        }
+        var nData = new FormData();
+        nData.append("file", ndaFileEl.files[0]);
+        nData.append("role", "admin");
+        nData.append("projectName", projName);
+        nData.append("docType", "NDA");
+        var nRes = await fetch("/api/drive/upload", { method: "POST", headers: { "Authorization": "Bearer " + tk }, body: nData });
+        if(nRes.ok) { var nj = await nRes.json(); data.ndaLink = nj.link; }
+      }
+      saveBtn.textContent = "Saving...";
+
       var newProject = !projectId;
       var prevStatus = project.status; // status before this save (undefined for new)
       if (projectId) {
@@ -638,16 +722,23 @@ function typeOpt(value, current) {
 // ---------------------------------------------------------------------------
 // Participation - approve / reject project join requests
 // ---------------------------------------------------------------------------
+let unsubParticipation = null;
+
 async function loadParticipation() {
   var container = document.querySelector("[data-admin-participation]");
   if (!container) return;
+
+  if (unsubParticipation) {
+    unsubParticipation();
+    unsubParticipation = null;
+  }
   container.innerHTML = "<p>Loading...</p>";
 
-  var filter = (document.querySelector("[data-participation-filter]") || {}).value || "all";
+  var filterSelect = document.querySelector("[data-participation-filter]");
 
-  try {
-    await Promise.all([ensureUsers(), ensureProjects()]);
-    var snap = await db.collection("participations").get();
+  function renderParticipation(snap) {
+    var filter = (filterSelect ? filterSelect.value : "all");
+
     if (snap.empty) { container.innerHTML = "<p>No participation records yet.</p>"; return; }
 
     var rows = [];
@@ -688,8 +779,8 @@ async function loadParticipation() {
     container.querySelectorAll("[data-view-answers]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         var partId = btn.dataset.viewAnswers;
-        var snap = await db.collection("participations").doc(partId).get();
-        var data = snap.exists ? snap.data() : {};
+        var partSnap = await db.collection("participations").doc(partId).get();
+        var data = partSnap.exists ? partSnap.data() : {};
         if (!data.customAnswers) return;
         
         var html = '<div style="text-align:left; max-height:400px; overflow-y:auto;">';
@@ -716,8 +807,8 @@ async function loadParticipation() {
     container.querySelectorAll("[data-assign-cred]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
         var partId = btn.dataset.assignCred;
-        var snap = await db.collection("participations").doc(partId).get();
-        var data = snap.exists ? snap.data() : {};
+        var partSnap = await db.collection("participations").doc(partId).get();
+        var data = partSnap.exists ? partSnap.data() : {};
         var currentCreds = data.assignedCredentials || "";
         var newCreds = await uiAssignCreds(currentCreds);
         if (newCreds === null) return;
@@ -729,6 +820,27 @@ async function loadParticipation() {
           uiAlert("Credentials assigned successfully.");
         } catch(e) { uiAlert(e.message); }
       });
+    });
+  }
+
+  try {
+    await Promise.all([ensureUsers(), ensureProjects()]);
+    
+    // We attach event directly since container innerHTML resets only the list, not the filter select which is outside it.
+    if (filterSelect) {
+      var newSelect = filterSelect.cloneNode(true);
+      filterSelect.parentNode.replaceChild(newSelect, filterSelect);
+      filterSelect = newSelect;
+    }
+
+    unsubParticipation = db.collection("participations").orderBy("createdAt", "desc").onSnapshot(function (snap) {
+      // Re-bind the listener to use the latest snap
+      if (filterSelect) {
+        filterSelect.onchange = function() { renderParticipation(snap); };
+      }
+      renderParticipation(snap);
+    }, function (err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
@@ -755,16 +867,23 @@ async function setParticipationStatus(partId, status) {
 // ---------------------------------------------------------------------------
 // Work Tracking - review submissions
 // ---------------------------------------------------------------------------
+let unsubSubmissions = null;
+
 async function loadAdminSubmissions() {
   var container = document.querySelector("[data-admin-submissions]");
   if (!container) return;
+  
+  if (unsubSubmissions) {
+    unsubSubmissions();
+    unsubSubmissions = null;
+  }
   container.innerHTML = "<p>Loading...</p>";
 
-  var filter = (document.querySelector("[data-work-filter]") || {}).value || "all";
+  var filterSelect = document.querySelector("[data-work-filter]");
 
-  try {
-    await Promise.all([ensureUsers(), ensureProjects()]);
-    var snap = await db.collection("submissions").orderBy("submittedAt", "desc").get();
+  function renderSubmissions(snap) {
+    var filter = (filterSelect ? filterSelect.value : "all");
+
     if (snap.empty) { container.innerHTML = "<p>No submissions yet.</p>"; return; }
 
     var rows = [];
@@ -795,6 +914,25 @@ async function loadAdminSubmissions() {
 
     container.querySelectorAll("[data-sub]").forEach(function (btn) {
       btn.addEventListener("click", function () { setSubmissionStatus(btn.dataset.sub, btn.dataset.act); });
+    });
+  }
+
+  try {
+    await Promise.all([ensureUsers(), ensureProjects()]);
+    
+    if (filterSelect) {
+      var newSelect = filterSelect.cloneNode(true);
+      filterSelect.parentNode.replaceChild(newSelect, filterSelect);
+      filterSelect = newSelect;
+    }
+
+    unsubSubmissions = db.collection("submissions").orderBy("submittedAt", "desc").onSnapshot(function(snap) {
+      if (filterSelect) {
+        filterSelect.onchange = function() { renderSubmissions(snap); };
+      }
+      renderSubmissions(snap);
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
@@ -849,43 +987,56 @@ async function setSubmissionStatus(subId, status) {
 // ---------------------------------------------------------------------------
 // Registrations - all accounts
 // ---------------------------------------------------------------------------
+let unsubAdminUsers = null;
+
 async function loadAdminUsers() {
   var container = document.querySelector("[data-admin-users]");
   if (!container) return;
+
+  if (unsubAdminUsers) {
+    unsubAdminUsers();
+    unsubAdminUsers = null;
+  }
+  
   container.innerHTML = "<p>Loading...</p>";
 
-  var search = ((document.querySelector("[data-user-search]") || {}).value || "").trim().toLowerCase();
-  var roleFilter = (document.querySelector("[data-user-filter]") || {}).value || "all";
+  var searchInput = document.querySelector("[data-user-search]");
+  var filterSelect = document.querySelector("[data-user-filter]");
 
-  try {
-    var snap = await db.collection("users").orderBy("createdAt", "desc").get();
-    userCache = {};
-    snap.forEach(function (d) { userCache[d.id] = d.data(); });
-
+  function renderUsers() {
+    var search = (searchInput ? searchInput.value : "").trim().toLowerCase();
+    var roleFilter = filterSelect ? filterSelect.value : "all";
     var rows = [];
-    snap.forEach(function (d) {
-      var u = d.data();
+
+    // Sort by createdAt descending
+    var userList = Object.keys(userCache).map(k => ({id: k, ...userCache[k]}));
+    userList.sort(function(a, b) {
+      var ta = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+      var tb = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+      return tb - ta;
+    });
+
+    userList.forEach(function (u) {
       if (roleFilter !== "all" && u.role !== roleFilter) return;
       if (search) {
         var hay = ((u.name || "") + " " + (u.email || "")).toLowerCase();
         if (hay.indexOf(search) === -1) return;
       }
       rows.push(
-        '<tr><td>' + esc(u.name || "-") + '</td><td>' + esc(u.email || "-") + '</td>' +
-        '<td>' + esc(u.phone || "-") + '</td><td>' + roleBadge(u.role) + '</td>' +
+        '<tr>' +
+        '<td><a href="#" class="admin-user-link" data-user-card="' + u.id + '" style="color:var(--blue); font-weight:500;">' + esc(u.name || "Unknown") + '</a></td>' +
+        '<td>' + esc(u.email || "-") + '</td>' +
+        '<td>' + esc(u.phone || "-") + '</td>' +
+        '<td>' + roleBadge(u.role) + '</td>' +
         '<td>' + esc(u.companyName || "-") + '</td>' +
-        '<td>' + (u.cvUrl ? '<a href="' + esc(u.cvUrl) + '" target="_blank">View CV</a>' : '-') + '</td>' +
-        '<td><div style="max-height: 4em; overflow-y: auto; font-size: 0.85em;">' +
-        '<strong>Bio:</strong> ' + esc(u.bio || "-") + '<br>' +
-        '<strong>Exp:</strong> ' + esc(u.experience || "-") + '</div></td>' +
         '<td>' + fmtDate(u.createdAt) + '</td>' +
-        '<td><button class="btn btn-ghost btn-sm" data-toggle-role="' + d.id + '" data-current="' + esc(u.role || "") + '">Change Role</button></td></tr>'
+        '<td><button class="btn btn-ghost btn-sm" data-toggle-role="' + u.id + '" data-current="' + esc(u.role || "") + '">Change Role</button></td></tr>'
       );
     });
 
     if (!rows.length) { container.innerHTML = "<p>No matching registrations.</p>"; return; }
     container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
-      '<th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Company</th><th>CV</th><th>Profile</th><th>Registered</th><th>Action</th>' +
+      '<th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Company</th><th>Registered</th><th>Action</th>' +
       '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
 
     container.querySelectorAll("[data-toggle-role]").forEach(function (btn) {
@@ -896,48 +1047,124 @@ async function loadAdminUsers() {
         if (!newRole || newRole === current) return;
         try {
           await db.collection("users").doc(uid).update({ role: newRole });
-          userCache = {};
-          loadAdminUsers();
         } catch (err) { uiAlert("Error: " + err.message); }
       });
+    });
+
+    container.querySelectorAll("[data-user-card]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        openUserCard(btn.dataset.userCard);
+      });
+    });
+  }
+
+  // Use simple events directly since we replace the elements to clear old listeners if needed,
+  // or just attach if not attached yet. For simplicity, we just attach once in initAdmin or we can clone.
+  if (searchInput) {
+    var newSearch = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newSearch, searchInput);
+    searchInput = newSearch;
+    newSearch.addEventListener("input", renderUsers);
+  }
+  if (filterSelect) {
+    var newSelect = filterSelect.cloneNode(true);
+    filterSelect.parentNode.replaceChild(newSelect, filterSelect);
+    filterSelect = newSelect;
+    newSelect.addEventListener("change", renderUsers);
+  }
+
+  try {
+    unsubAdminUsers = db.collection("users").orderBy("createdAt", "desc").onSnapshot(function (snap) {
+      snap.docChanges().forEach(function(change) {
+        if (change.type === "removed") {
+          delete userCache[change.doc.id];
+        } else {
+          userCache[change.doc.id] = change.doc.data();
+        }
+      });
+      renderUsers();
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
   }
 }
 
+function openUserCard(uid) {
+  var u = userCache[uid];
+  if (!u) return;
+
+  var modal = document.querySelector("[data-edit-modal]");
+  var body = document.querySelector("[data-modal-body]");
+  modal.hidden = false;
+  document.body.classList.add("menu-open");
+
+  var cvLink = u.cvUrl ? '<a href="' + esc(u.cvUrl) + '" target="_blank" class="btn btn-outline btn-sm">View CV</a>' : 'No CV Uploaded';
+  
+  var html = '<h2>User Profile</h2>' +
+    '<div style="margin-bottom: 20px;">' +
+    '<p><strong>Name:</strong> ' + esc(u.name || "-") + '</p>' +
+    '<p><strong>Email:</strong> ' + esc(u.email || "-") + '</p>' +
+    '<p><strong>Phone:</strong> ' + esc(u.phone || "-") + '</p>' +
+    '<p><strong>Role:</strong> ' + roleBadge(u.role) + '</p>' +
+    '<p><strong>Company:</strong> ' + esc(u.companyName || "-") + '</p>' +
+    '<p><strong>Registered:</strong> ' + fmtDate(u.createdAt) + '</p>' +
+    '</div>' +
+    '<hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--line);">' +
+    '<h3>Details</h3>' +
+    '<p><strong>Bio:</strong><br>' + esc(u.bio || "Not provided") + '</p>' +
+    '<p><strong>Experience:</strong><br>' + esc(u.experience || "Not provided") + '</p>' +
+    '<p><strong>Languages:</strong> ' + (u.languages && u.languages.length ? esc(u.languages.join(", ")) : "None") + '</p>' +
+    '<p><strong>Skills:</strong> ' + (u.skills && u.skills.length ? esc(u.skills.join(", ")) : "None") + '</p>' +
+    '<div style="margin-top: 20px;">' + cvLink + '</div>';
+
+  body.innerHTML = html;
+}
+
 // ---------------------------------------------------------------------------
 // Contacts
 // ---------------------------------------------------------------------------
+let unsubAdminContacts = null;
+
 async function loadAdminContacts() {
   var container = document.querySelector("[data-admin-contacts]");
   if (!container) return;
+
+  if (unsubAdminContacts) {
+    unsubAdminContacts();
+    unsubAdminContacts = null;
+  }
   container.innerHTML = "<p>Loading...</p>";
 
   try {
-    var snap = await db.collection("contacts").orderBy("createdAt", "desc").limit(100).get();
-    if (snap.empty) { container.innerHTML = "<p>No contacts yet.</p>"; return; }
-    var rows = [];
-    snap.forEach(function (d) {
-      var c = d.data();
-      rows.push(
-        '<tr><td>' + esc(c.name || "-") + '</td><td>' + esc(c.email || "-") + '</td>' +
-        '<td>' + esc(c.phone || "-") + '</td><td>' + esc(c.subject || c.type || "-") + '</td>' +
-        '<td>' + esc((c.message || "").slice(0, 80)) + '</td><td>' + fmtDate(c.createdAt) + '</td>' +
-        '<td>' + statusBadge(c.status || "new") + '</td>' +
-        '<td><button class="btn btn-ghost btn-sm" data-contact-read="' + d.id + '">Mark Read</button> ' +
-        '<button class="btn btn-ghost btn-sm btn-success" data-contact-replied="' + d.id + '">Replied</button></td></tr>'
-      );
-    });
-    container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
-      '<th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Submitted</th><th>Status</th><th>Action</th>' +
-      '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
+    unsubAdminContacts = db.collection("contacts").orderBy("createdAt", "desc").limit(100).onSnapshot(function(snap) {
+      if (snap.empty) { container.innerHTML = "<p>No contacts yet.</p>"; return; }
+      var rows = [];
+      snap.forEach(function (d) {
+        var c = d.data();
+        rows.push(
+          '<tr><td>' + esc(c.name || "-") + '</td><td>' + esc(c.email || "-") + '</td>' +
+          '<td>' + esc(c.phone || "-") + '</td><td>' + esc(c.subject || c.type || "-") + '</td>' +
+          '<td>' + esc((c.message || "").slice(0, 80)) + '</td><td>' + fmtDate(c.createdAt) + '</td>' +
+          '<td>' + statusBadge(c.status || "new") + '</td>' +
+          '<td><button class="btn btn-ghost btn-sm" data-contact-read="' + d.id + '">Mark Read</button> ' +
+          '<button class="btn btn-ghost btn-sm btn-success" data-contact-replied="' + d.id + '">Replied</button></td></tr>'
+        );
+      });
+      container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+        '<th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Submitted</th><th>Status</th><th>Action</th>' +
+        '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
 
-    container.querySelectorAll("[data-contact-read]").forEach(function (btn) {
-      btn.addEventListener("click", function () { setContactStatus(btn.dataset.contactRead, "read"); });
-    });
-    container.querySelectorAll("[data-contact-replied]").forEach(function (btn) {
-      btn.addEventListener("click", function () { setContactStatus(btn.dataset.contactReplied, "replied"); });
+      container.querySelectorAll("[data-contact-read]").forEach(function (btn) {
+        btn.addEventListener("click", function () { setContactStatus(btn.dataset.contactRead, "read"); });
+      });
+      container.querySelectorAll("[data-contact-replied]").forEach(function (btn) {
+        btn.addEventListener("click", function () { setContactStatus(btn.dataset.contactReplied, "replied"); });
+      });
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
@@ -947,30 +1174,56 @@ async function loadAdminContacts() {
 async function setContactStatus(id, status) {
   try {
     await db.collection("contacts").doc(id).update({ status: status });
-    loadAdminContacts();
   } catch (err) { uiAlert("Error: " + err.message); }
 }
 
 // ---------------------------------------------------------------------------
 // Messages (admin sees all threads)
 // ---------------------------------------------------------------------------
+let unsubAdminMessages = null;
+let unsubAdminMessagesUsers = null;
+let _adminMessagesCache = { users: {}, threads: {} };
+
 async function loadAdminMessages() {
   var container = document.querySelector("[data-admin-messages]");
   if (!container) return;
-  container.innerHTML = "<p>Loading...</p>";
 
-  try {
-    var snap = await db.collection("messages").orderBy("lastAt", "desc").limit(50).get();
-    if (snap.empty) { container.innerHTML = "<p>No message threads yet.</p>"; return; }
+  function renderList() {
+    var rowData = [];
+    for (var uid in _adminMessagesCache.users) {
+      var u = _adminMessagesCache.users[uid];
+      if (u.role === "admin") continue; // Optionally skip admins? Or show everyone.
+      var t = _adminMessagesCache.threads[uid] || {};
+      rowData.push({
+        id: uid,
+        name: u.name || u.email || "Unknown",
+        lastMessage: t.lastMessage || "No messages yet",
+        lastAt: t.lastAt || u.createdAt || null,
+        unreadAdmin: t.unreadAdmin || 0
+      });
+    }
+
+    // Sort by unread first, then by lastAt descending
+    rowData.sort(function(a, b) {
+      if (a.unreadAdmin > 0 && b.unreadAdmin === 0) return -1;
+      if (b.unreadAdmin > 0 && a.unreadAdmin === 0) return 1;
+      var ta = a.lastAt && typeof a.lastAt.toMillis === 'function' ? a.lastAt.toMillis() : 0;
+      var tb = b.lastAt && typeof b.lastAt.toMillis === 'function' ? b.lastAt.toMillis() : 0;
+      return tb - ta;
+    });
+
+    if (rowData.length === 0) { container.innerHTML = "<p>No users available to message.</p>"; return; }
+
     var rows = [];
-    snap.forEach(function (d) {
-      var m = d.data();
+    rowData.forEach(function (m) {
+      var badge = m.unreadAdmin > 0 ? ' <span class="badge" style="background:#ff4757;color:#fff;border-radius:12px;padding:2px 6px;font-size:0.75rem;margin-left:8px;">' + m.unreadAdmin + ' new</span>' : '';
       rows.push(
-        '<tr><td>' + esc(m.userName || d.id) + '</td><td>' + esc((m.lastMessage || "").slice(0, 80)) + '</td>' +
-        '<td>' + fmtDate(m.lastAt) + '</td>' +
-        '<td><button class="btn btn-ghost btn-sm" data-open-thread="' + d.id + '">Open</button></td></tr>'
+        '<tr><td>' + esc(m.name) + badge + '</td><td>' + esc(m.lastMessage.slice(0, 80)) + '</td>' +
+        '<td>' + (m.lastAt ? fmtDate(m.lastAt) : '-') + '</td>' +
+        '<td><button class="btn btn-ghost btn-sm" data-open-thread="' + m.id + '">Chat</button></td></tr>'
       );
     });
+
     container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
       '<th>User</th><th>Last Message</th><th>Updated</th><th>Action</th>' +
       '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
@@ -978,10 +1231,36 @@ async function loadAdminMessages() {
     container.querySelectorAll("[data-open-thread]").forEach(function (btn) {
       btn.addEventListener("click", function () { openThread(btn.dataset.openThread); });
     });
+  }
+
+  if (unsubAdminMessages) { unsubAdminMessages(); unsubAdminMessages = null; }
+  if (unsubAdminMessagesUsers) { unsubAdminMessagesUsers(); unsubAdminMessagesUsers = null; }
+  container.innerHTML = "<p>Loading...</p>";
+
+  try {
+    unsubAdminMessagesUsers = db.collection("users").onSnapshot(function(snap) {
+      snap.forEach(function(d) {
+        _adminMessagesCache.users[d.id] = Object.assign({ id: d.id }, d.data());
+      });
+      renderList();
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
+    });
+
+    unsubAdminMessages = db.collection("messages").onSnapshot(function(snap) {
+      snap.forEach(function(d) {
+        _adminMessagesCache.threads[d.id] = d.data();
+      });
+      renderList();
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
+    });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
   }
 }
+
+let unsubAdminThread = null;
 
 function openThread(threadId) {
   var modal = document.querySelector("[data-edit-modal]");
@@ -996,21 +1275,29 @@ function openThread(threadId) {
 
   var thread = body.querySelector("#admin-thread");
 
-  db.collection("messages").doc(threadId).collection("items")
-    .orderBy("createdAt", "asc").limit(100).get().then(function (snap) {
+  if (unsubAdminThread) {
+    unsubAdminThread();
+    unsubAdminThread = null;
+  }
+
+  unsubAdminThread = db.collection("messages").doc(threadId).collection("items")
+    .orderBy("createdAt", "asc").limit(100).onSnapshot(function (snap) {
       if (snap.empty) { thread.innerHTML = "<p>No messages.</p>"; return; }
       var html = "";
       snap.forEach(function (d) {
         var m = d.data();
         // In the admin view, admin replies sit on the right; user on the left.
         var mine = m.sender === "admin";
-        var cls = mine ? "msg-user" : "msg-admin";
+        var cls = mine ? "msg-user" : "msg-admin"; // using existing reversed class names
         var label = mine ? "You" : "User";
         html += '<div class="msg-item ' + cls + '"><strong>' + esc(label) + '</strong><p>' + esc(m.text || "") + '</p></div>';
       });
       thread.innerHTML = html;
       thread.scrollTop = thread.scrollHeight;
     });
+
+  // Clear unreadAdmin count when opening the thread
+  db.collection("messages").doc(threadId).set({ unreadAdmin: 0 }, { merge: true }).catch(function(){});
 
   var replyForm = body.querySelector("[data-admin-reply-form]");
   replyForm.addEventListener("submit", async function (e) {
@@ -1028,15 +1315,28 @@ function openThread(threadId) {
       await db.collection("messages").doc(threadId).set({
         lastMessage: text,
         lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+        unreadUser: firebase.firestore.FieldValue.increment(1)
       }, { merge: true });
       input.value = "";
-      openThread(threadId);
     } catch (err) {
       uiAlert("Error: " + err.message);
     } finally {
       input.disabled = false;
+      input.focus();
     }
   });
+
+  // Ensure unsubscribe when modal closes
+  var closeBtn = modal.querySelector(".modal-close");
+  if (closeBtn) {
+    // Need to cleanly replace or add listener, but modal close is usually handled globally in script.js. 
+    // We can just rely on the next openThread calling unsubAdminThread, or attach a one-time listener.
+    var origClose = closeBtn.onclick;
+    closeBtn.onclick = function(e) {
+      if (unsubAdminThread) { unsubAdminThread(); unsubAdminThread = null; }
+      if (origClose) origClose.call(this, e);
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1213,16 +1513,23 @@ function esc(str) {
 // ---------------------------------------------------------------------------
 // Payments & Invoicing
 // ---------------------------------------------------------------------------
+let unsubAdminPayments = null;
+
 async function loadAdminPayments() {
   var container = document.querySelector("[data-admin-payments]");
   if (!container) return;
+
+  if (unsubAdminPayments) {
+    unsubAdminPayments();
+    unsubAdminPayments = null;
+  }
   container.innerHTML = "<p>Loading...</p>";
 
-  var filter = (document.querySelector("[data-payment-filter]") || {}).value || "all";
+  var filterSelect = document.querySelector("[data-payment-filter]");
 
-  try {
-    await Promise.all([ensureUsers(), ensureProjects()]);
-    var snap = await db.collection("participations").get();
+  function renderPayments(snap) {
+    var filter = (filterSelect ? filterSelect.value : "all");
+
     if (snap.empty) { container.innerHTML = "<p>No project participations found.</p>"; return; }
 
     var rows = [];
@@ -1275,7 +1582,6 @@ async function loadAdminPayments() {
           await db.collection("participations").doc(docId).update({ invoiceStatus: "rejected", invoiceRejectReason: reason, step: 4 });
           var projName = projectCache[pData.projectId] ? projectCache[pData.projectId].name : "a project";
           await addNotification(pData.userId, "Invoice Rejected", "Your invoice for " + esc(projName) + " was rejected: " + reason + ". Please resubmit.", "portal.html");
-          loadAdminPayments();
         } catch(e) { uiAlert(e.message); btn.disabled = false; btn.textContent = "Reject"; }
       });
     });
@@ -1292,9 +1598,27 @@ async function loadAdminPayments() {
           await db.collection("participations").doc(docId).update({ invoiceStatus: "paid", step: 5 });
           var projName = projectCache[pData.projectId] ? projectCache[pData.projectId].name : "a project";
           await addNotification(pData.userId, "Payment Processed", "Your payment for " + esc(projName) + " has been processed.", "portal.html");
-          loadAdminPayments();
         } catch(e) { uiAlert(e.message); btn.disabled = false; btn.textContent = "Pay"; }
       });
+    });
+  }
+
+  try {
+    await Promise.all([ensureUsers(), ensureProjects()]);
+    
+    if (filterSelect) {
+      var newSelect = filterSelect.cloneNode(true);
+      filterSelect.parentNode.replaceChild(newSelect, filterSelect);
+      filterSelect = newSelect;
+    }
+
+    unsubAdminPayments = db.collection("participations").onSnapshot(function(snap) {
+      if (filterSelect) {
+        filterSelect.onchange = function() { renderPayments(snap); };
+      }
+      renderPayments(snap);
+    }, function(err) {
+      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";

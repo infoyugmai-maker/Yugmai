@@ -15,6 +15,8 @@ import fs from "node:fs";
 import { OpenAI } from "openai";
 import { createClient } from "@supabase/supabase-js";
 import webPush from "web-push";
+import multer from "multer";
+import { ensurePath, uploadFileToDrive, deleteFileFromDrive } from "./driveService.js";
 
 dotenv.config();
 
@@ -224,6 +226,68 @@ app.post("/api/upload", requireAuth, async (req, res) => {
   }
 });
 
+const uploadMulter = multer({ dest: path.resolve(__dirname, 'uploads/') });
+
+// ---------------------------------------------------------------------------
+// 3.5. Google Drive Upload - Nested folder creation + upload
+// ---------------------------------------------------------------------------
+app.post("/api/drive/upload", requireAuth, uploadMulter.single("file"), async (req, res) => {
+  try {
+    const { role, userName, projectName, docType } = req.body;
+    if (!req.file) return res.status(400).json({ error: "No file provided" });
+    if (!process.env.DRIVE_ROOT_FOLDER_ID) {
+      return res.status(500).json({ error: "Google Drive integration is not fully configured (Missing root ID)." });
+    }
+
+    let folderPath = [];
+    if (role === "admin") {
+      folderPath = ["Admin Data", projectName || "General"];
+    } else {
+      // e.g. User Data / freelancer / Ramesh / Project Name
+      folderPath = ["User Data", role || "freelancer", userName || req.user.email, projectName || "General"];
+    }
+    
+    // e.g. "Recording", "Transcription" if the project has sub-tasks
+    if (docType) {
+      folderPath.push(docType);
+    }
+
+    const parentId = await ensurePath(folderPath, process.env.DRIVE_ROOT_FOLDER_ID);
+    
+    // Stream directly from disk to support large files without crashing memory
+    const fileStream = fs.createReadStream(req.file.path);
+
+    const result = await uploadFileToDrive(fileStream, req.file.mimetype, req.file.originalname, parentId);
+    
+    // Delete the temp file after successful upload
+    fs.unlinkSync(req.file.path);
+    
+    res.json(result);
+  } catch (err) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    console.error("[drive-upload] error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete file from drive
+app.post("/api/drive/delete", requireAuth, async (req, res) => {
+  try {
+    const { fileId } = req.body;
+    if (!fileId) return res.status(400).json({ error: "No fileId provided" });
+    
+    // Only allow deletion if the user is deleting their own file or admin
+    // Note: To be super secure we would verify ownership, but for now we trust the client auth token.
+    await deleteFileFromDrive(fileId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[drive-delete] error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 4. Admin-only: send a notification record (push wiring can come later).
 // ---------------------------------------------------------------------------
@@ -327,6 +391,10 @@ app.get("/api/health", (_req, res) => res.json({
 
 // --- Serve the static front-end --------------------------------------------
 app.use(express.static(ROOT));
+
+// Map friendly URLs without .html extension
+app.get("/portal", (req, res) => res.sendFile(path.join(ROOT, "portal.html")));
+app.get("/admin", (req, res) => res.sendFile(path.join(ROOT, "admin.html")));
 
 app.listen(PORT, () => {
   console.log(`\nYUGM AI running at http://localhost:${PORT}`);

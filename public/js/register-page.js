@@ -56,9 +56,13 @@ function initRegisterPage(form, status, googleBtn, modal, modalStatus) {
         status.textContent = "Please complete your profile...";
         openModal();
       } else {
-        status.style.color = "#85ffaa";
         status.textContent = "Account found. Signing in...";
-        redirectAfterAuth(result.user);
+        if (!result.user.languages) { // rudimentary check
+          status.textContent = "Please complete your profile...";
+          openModal(result.user, false); // isGoogle = false for normal, but it's a redirect so we might not know. Let's pass true.
+        } else {
+          redirectAfterAuth(result.user);
+        }
       }
     }
   });
@@ -80,10 +84,10 @@ function initRegisterPage(form, status, googleBtn, modal, modalStatus) {
     setBusy(form, true);
     status.textContent = "Creating your account...";
     try {
-      await registerWithEmail({ name, email, phone, companyName, accountType, password });
+      const cred = await registerWithEmail({ name, email, phone, companyName, accountType, password });
       status.style.color = "#85ffaa";
-      status.textContent = "Account created. Redirecting...";
-      window.location.href = "portal.html";
+      status.textContent = "Registration successful. Please complete your profile...";
+      openModal(cred, false);
     } catch (err) {
       console.error("[register] email sign-up error:", err.code, err.message);
       fail(status, authError(err.code));
@@ -104,7 +108,6 @@ function initRegisterPage(form, status, googleBtn, modal, modalStatus) {
         status.textContent = "Please complete your profile...";
         openModal();
       } else {
-        status.style.color = "#85ffaa";
         status.textContent = "Account found. Signing in...";
         await redirectAfterAuth(result.user);
       }
@@ -126,18 +129,51 @@ function initRegisterPage(form, status, googleBtn, modal, modalStatus) {
 
   // modal completion submit
   const modalForm = modal.querySelector("[data-google-complete-form]");
+  
+  modal.querySelector("[data-skip-profile]").addEventListener("click", function() {
+    window.location.href = "portal.html";
+  });
+
   modalForm.addEventListener("submit", async function (e) {
     e.preventDefault();
     const user = getAuth().currentUser;
     if (!user) return fail(modalStatus, "Session expired. Please sign in again.");
-    const phone = document.getElementById("g-phone").value.trim();
-    const companyName = document.getElementById("g-company").value.trim();
-    if (!phone) return fail(modalStatus, "Phone number is required.");
+    
+    // We might have phone/company hidden if it's an email registration (they already provided it)
+    const phoneEl = document.getElementById("g-phone");
+    const companyEl = document.getElementById("g-company");
+    const phone = phoneEl ? phoneEl.value.trim() : "";
+    const companyName = companyEl ? companyEl.value.trim() : "";
+    
+    if (phoneEl && phoneEl.closest("#g-basic-info").style.display !== "none" && !phone) {
+      return fail(modalStatus, "Phone number is required.");
+    }
+
+    const languages = document.getElementById("g-languages").value.split(",").map(s => s.trim()).filter(Boolean);
+    const skills = Array.from(modal.querySelectorAll("input[name='skills']:checked")).map(cb => cb.value);
+
     setBusy(modalForm, true);
     modalStatus.style.color = "";
-    modalStatus.textContent = "Finishing up...";
+    modalStatus.textContent = "Saving profile...";
+    
     try {
-      await completeGoogleProfile(user, { phone, accountType: modalType, companyName });
+      // Get current profile
+      const fs = getFirestoreModule();
+      const existing = await getUserDoc(user.uid) || {};
+      
+      const updateData = {
+        languages: languages,
+        skills: skills,
+      };
+      
+      if (phoneEl && phoneEl.closest("#g-basic-info").style.display !== "none") {
+         updateData.phone = phone;
+         updateData.companyName = companyName;
+         updateData.role = modalType;
+      }
+
+      await fs.setDoc(fs.doc(getDb(), "users", user.uid), updateData, { merge: true });
+      
       modalStatus.style.color = "#85ffaa";
       modalStatus.textContent = "Done! Redirecting...";
       window.location.href = "portal.html";
@@ -148,9 +184,26 @@ function initRegisterPage(form, status, googleBtn, modal, modalStatus) {
     }
   });
 
-  function openModal() {
+  function openModal(userObj, isGoogle) {
     modal.hidden = false;
     document.body.classList.add("menu-open");
+    
+    // If it's an email user, they already gave Phone and Company. Hide that section.
+    const basicInfo = document.getElementById("g-basic-info");
+    const typeGrid = modal.querySelector("[data-modal-types]");
+    const title = document.getElementById("gm-title");
+    
+    if (isGoogle === false) {
+      if (basicInfo) basicInfo.style.display = "none";
+      if (typeGrid) typeGrid.style.display = "none";
+      if (title) title.textContent = "Add your Skills & Languages";
+      const desc = title.nextElementSibling;
+      if (desc && desc.tagName === "P") desc.textContent = "Let clients know what services you can provide.";
+    } else {
+      if (basicInfo) basicInfo.style.display = "block";
+      if (typeGrid) typeGrid.style.display = "flex";
+      if (title) title.textContent = "Complete your registration";
+    }
   }
 }
 
