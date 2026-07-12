@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us | YUGM AI - Meet the Team Behind the Innovation</title>
+    <meta name="description" content="Meet the leadership team behind YUGM AI. Learn about our Founder, Co-Founder, and CTO who are driving AI innovation from Delhi to the world.">
+    <meta name="keywords" content="YUGM AI team, about YUGM AI, Ahad Ansari, Shamad Ansari, Arfat, AI leadership">
+    <meta name="author" content="YUGM AI">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://yugmai.in/about.html">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="About YUGM AI | Our Leadership Team">
+    <meta property="og:description" content="Meet the founders and leadership team powering YUGM AI's mission to deliver high-quality AI training data worldwide.">
+    <meta property="og:url" content="https://yugmai.in/about.html">
+    <meta property="og:image" content="https://yugmai.in/logo.png">
+    <meta name="theme-color" content="#020409">
+    <link rel="icon" href="logo.png" type="image/png">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css?v=2">
+    <style>
+        /* ── About Page Specific Styles ── */
+        .about-hero {
+            padding: 120px 0 60px;
+            text-align: center;
+            position: relative;
+        }
+        .about-hero .section-eyebrow {
+            margin-bottom: 1rem;
+        }
+        .about-hero .section-title {
+            max-width: 700px;
+            margin: 0 auto 1.5rem;
+        }
+        .about-hero .hero-subtitle {
+            color: var(--muted);
+            font-size: 1.15rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        /* ── Team Grid ── */
+        .team-section {
+            padding: 60px 0 100px;
+        }
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .team-card {
+            position: relative;
+            background: rgba(18, 18, 18, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1.5rem;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                        border-color 300ms ease,
+                        box-shadow 400ms ease;
+        }
+        .team-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(84, 163, 255, 0.5);
+            box-shadow: 0 20px 60px rgba(11, 108, 255, 0.15),
+                        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+        .team-card-photo {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            display: block;
+        }
+        .team-card-placeholder {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(11, 108, 255, 0.15), rgba(84, 163, 255, 0.08));
+            font-size: 5rem;
+            font-weight: 800;
+            color: rgba(84, 163, 255, 0.5);
+            letter-spacing: -0.05em;
+            font-family: 'Outfit', sans-serif;
+        }
+        .team-card-body {
+            padding: 1.75rem 1.75rem 2rem;
+        }
+        .team-card-role {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent, #54a3ff);
+            margin-bottom: 0.5rem;
+            background: rgba(84, 163, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 100px;
+        }
+        .team-card-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--white, #fff);
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+        .team-card-bio {
+            color: var(--muted, #8b949e);
+            font-size: 0.95rem;
+            line-height: 1.75;
+            margin-bottom: 1.5rem;
+        }
+        .team-card-linkedin {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent, #54a3ff);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: color 200ms ease, transform 200ms ease;
+        }
+        .team-card-linkedin:hover {
+            color: var(--white, #fff);
+            transform: translateX(4px);
+        }
+        .team-card-linkedin svg {
+            flex-shrink: 0;
+        }
+
+        /* ── Mission Section ── */
+        .mission-section {
+            padding: 80px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .mission-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .mission-content h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--white, #fff);
+            margin-bottom: 1.25rem;
+            line-height: 1.2;
+        }
+        .mission-content p {
+            color: var(--muted, #8b949e);
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+        .mission-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .stat-card {
+            background: rgba(18, 18, 18, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: border-color 300ms ease;
+        }
+        .stat-card:hover {
+            border-color: rgba(84, 163, 255, 0.3);
+        }
+        .stat-number {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--accent, #54a3ff);
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--muted, #8b949e);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Social CTA ── */
+        .social-cta {
+            padding: 60px 0 80px;
+            text-align: center;
+        }
+        .social-cta h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--white, #fff);
+            margin-bottom: 0.75rem;
+        }
+        .social-cta p {
+            color: var(--muted, #8b949e);
+            margin-bottom: 2rem;
+            font-size: 1.05rem;
+        }
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.25rem;
+        }
+        .social-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: transform 200ms ease, box-shadow 200ms ease;
+        }
+        .social-btn:hover {
+            transform: translateY(-3px);
+        }
+        .social-btn--linkedin {
+            background: #0a66c2;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(10, 102, 194, 0.3);
+        }
+        .social-btn--linkedin:hover {
+            box-shadow: 0 8px 30px rgba(10, 102, 194, 0.5);
+        }
+        .social-btn--instagram {
+            background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(220, 39, 67, 0.3);
+        }
+        .social-btn--instagram:hover {
+            box-shadow: 0 8px 30px rgba(220, 39, 67, 0.5);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .about-hero { padding: 100px 0 40px; }
+            .team-grid { grid-template-columns: 1fr; max-width: 420px; }
+            .mission-grid { grid-template-columns: 1fr; }
+            .mission-stats { grid-template-columns: 1fr 1fr; }
+            .social-links { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container header-inner">
+                <a class="brand" href="index.html#home" aria-label="YUGM AI home">
+                    <img src="logo.png" alt="YUGM AI logo">
+                </a>
+                <nav class="primary-nav" aria-label="Primary navigation">
+                    <a href="index.html#home">Home</a>
+                    <a href="index.html#projects">Projects</a>
+                    <a href="index.html#services">Services</a>
+                    <a href="index.html#process">Process</a>
+                    <a href="privacy.html">Privacy</a>
+                    <a href="terms.html">Terms</a>
+                    <a href="about.html" class="active">About</a>
+                    <a href="contact.html">Contact</a>
+                    <a href="login.html" class="mobile-only">Login</a>
+                    <a href="register.html" class="mobile-only">Register</a>
+                </nav>
+                <div class="nav-actions">
+                    <a class="btn btn-ghost" href="login.html">Login</a>
+                    <a class="btn btn-primary" href="register.html">Register</a>
+                    <button class="mobile-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+                        <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="page-main">
+            <!-- Hero -->
+            <section class="about-hero">
+                <div class="container">
+                    <p class="section-eyebrow">About YUGM AI</p>
+                    <h1 class="section-title">The People Powering Precision AI Data</h1>
+                    <p class="hero-subtitle">We are a Delhi-based team of AI enthusiasts, technologists, and operations strategists building the bridge between human intelligence and machine learning — one dataset at a time.</p>
+                </div>
+            </section>
+
+            <!-- Team -->
+            <section class="team-section">
+                <div class="container">
+                    <div class="team-grid">
+
+                        <!-- Founder & CEO -->
+                        <div class="team-card" data-reveal>
+                            <div class="team-card-placeholder">AA</div>
+                            <div class="team-card-body">
+                                <span class="team-card-role">Founder & CEO</span>
+                                <h2 class="team-card-name">Ahad Ansari</h2>
+                                <p class="team-card-bio">As the visionary behind Yugm AI, Ahad drives the company's strategic direction with deep expertise in startup development and project planning. He oversees end-to-end operations, architecting growth strategies and cultivating partnerships that position Yugm AI at the forefront of the AI data industry. His leadership transforms innovative ideas into scalable, high-impact solutions that serve global AI teams.</p>
+                                <a class="team-card-linkedin" href="https://www.linkedin.com/in/ansari-ahad" target="_blank" rel="noopener noreferrer">
+                                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                                    Connect on LinkedIn
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Co-Founder & COO -->
+                        <div class="team-card" data-reveal="delay-1">
+                            <img class="team-card-photo" src="shamad-ansari.jpg" alt="Shamad Ansari - Co-Founder & COO">
+                            <div class="team-card-body">
+                                <span class="team-card-role">Co-Founder & COO</span>
+                                <h2 class="team-card-name">Shamad Ansari</h2>
+                                <p class="team-card-bio">Shamad leads Yugm AI's strategic partnerships, global vendor management, and AI data operations. With a proven track record of building scalable solutions through his previous venture, Delta Group, he brings extensive experience in AI data collection, annotation, transcription, translation, and localization services. He manages large-scale multinational vendor networks, executing projects across numerous languages and regions worldwide.</p>
+                                <a class="team-card-linkedin" href="https://www.linkedin.com/in/shamad-ansari" target="_blank" rel="noopener noreferrer">
+                                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                                    Connect on LinkedIn
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- CTO -->
+                        <div class="team-card" data-reveal="delay-2">
+                            <div class="team-card-placeholder">A</div>
+                            <div class="team-card-body">
+                                <span class="team-card-role">Chief Technology Officer</span>
+                                <h2 class="team-card-name">Arfat</h2>
+                                <p class="team-card-bio">As CTO, Arfat leads Yugm AI's technology vision — from architecting AI-powered products and scalable software solutions to engineering intelligent AI agents, large language model (LLM) applications, and full-stack automation systems. He oversees the entire technology stack, ensuring every product is innovative, reliable, and future-ready, delivering impactful AI solutions that solve real-world business challenges.</p>
+                                <a class="team-card-linkedin" href="https://www.linkedin.com/in/arfat-ansari-1851a0331" target="_blank" rel="noopener noreferrer">
+                                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                                    Connect on LinkedIn
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mission -->
+            <section class="mission-section">
+                <div class="container">
+                    <div class="mission-grid">
+                        <div class="mission-content" data-reveal>
+                            <p class="section-eyebrow">Our Mission</p>
+                            <h2>Bridging Human Intelligence & Machine Learning</h2>
+                            <p>YUGM AI coordinates people, process, and review systems to produce training data that models can learn from with confidence. Built in Delhi, designed for global AI teams.</p>
+                            <p>We believe that behind every great AI model is great data — and behind every great dataset is a team of dedicated, well-coordinated humans.</p>
+                        </div>
+                        <div class="mission-stats" data-reveal="delay-1">
+                            <div class="stat-card">
+                                <span class="stat-number">50+</span>
+                                <span class="stat-label">Languages Supported</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-number">100+</span>
+                                <span class="stat-label">Global Partners</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-number">1M+</span>
+                                <span class="stat-label">Data Points Delivered</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-number">24/7</span>
+                                <span class="stat-label">Operations Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Social CTA -->
+            <section class="social-cta">
+                <div class="container">
+                    <p class="section-eyebrow">Stay Connected</p>
+                    <h2>Follow Us for Updates & Opportunities</h2>
+                    <p>Stay in the loop with the latest projects, industry insights, and career opportunities at YUGM AI.</p>
+                    <div class="social-links">
+                        <a class="social-btn social-btn--linkedin" href="https://www.linkedin.com/company/yugm-ai/" target="_blank" rel="noopener noreferrer">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                            Follow on LinkedIn
+                        </a>
+                        <a class="social-btn social-btn--instagram" href="https://www.instagram.com/yugm_ai/" target="_blank" rel="noopener noreferrer">
+                            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                            Follow on Instagram
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <div class="container footer-grid">
+                <div class="footer-brand">
+                    <img src="logo.png" alt="YUGM AI">
+                    <p>&copy; 2026 YUGM AI. All rights reserved.<br>Delhi, India. Serving partners worldwide.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="contact.html">Contact</a>
+                    <a href="login.html">Login</a>
+                    <a href="register.html">Register</a>
+                    <a href="about.html">About</a>
+                    <a href="https://www.linkedin.com/company/yugm-ai/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+                    <a href="https://www.instagram.com/yugm_ai/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/script.js?v=2" defer></script>
+</body>
+</html>
