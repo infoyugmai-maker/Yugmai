@@ -381,7 +381,7 @@ textarea {
   line-height: 1;
 }
 
-.proof-item span {
+.proof-item span:not(.count-up) {
   display: block;
   color: var(--muted);
   margin-top: 10px;
