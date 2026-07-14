@@ -599,16 +599,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inject styles
     var style = document.createElement("style");
     style.textContent =
-      '#followus-banner{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#0b1d3a 0%,#0a2e5c 100%);border-top:1px solid rgba(84,163,255,0.3);padding:0;transform:translateY(100%);animation:followus-slidein .5s cubic-bezier(.4,0,.2,1) forwards;animation-delay:.3s;opacity:0}' +
+      '#followus-banner{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#080808 0%,#111111 100%);border-top:1px solid rgba(255,255,255,0.1);padding:0;transform:translateY(100%);animation:followus-slidein .5s cubic-bezier(.4,0,.2,1) forwards;animation-delay:.3s;opacity:0}' +
       '@keyframes followus-slidein{to{transform:translateY(0);opacity:1}}' +
       '.followus-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:1.25rem;padding:14px 24px;flex-wrap:wrap}' +
-      '.followus-inner p{color:#e0e6ed;font-size:.95rem;margin:0;font-family:"Outfit",sans-serif}' +
+      '.followus-inner p{color:#d0d0d0;font-size:.95rem;margin:0;font-family:"Outfit",sans-serif}' +
       '.followus-btns{display:flex;gap:.6rem}' +
       '.followus-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:100px;text-decoration:none;font-weight:600;font-size:.8rem;transition:transform .2s,box-shadow .2s;font-family:"Outfit",sans-serif}' +
       '.followus-btn:hover{transform:translateY(-2px)}' +
       '.followus-linkedin{background:#0a66c2;color:#fff;box-shadow:0 2px 12px rgba(10,102,194,.3)}' +
       '.followus-instagram{background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;box-shadow:0 2px 12px rgba(220,39,67,.3)}' +
-      '.followus-close{background:none;border:none;color:#8b949e;font-size:1.5rem;cursor:pointer;padding:4px 8px;line-height:1;transition:color .2s}' +
+      '.followus-close{background:none;border:none;color:#666666;font-size:1.5rem;cursor:pointer;padding:4px 8px;line-height:1;transition:color .2s}' +
       '.followus-close:hover{color:#fff}' +
       '@media(max-width:600px){.followus-inner{flex-direction:column;text-align:center;gap:.75rem}.followus-btns{justify-content:center}}';
     document.head.appendChild(style);
