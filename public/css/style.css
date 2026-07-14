@@ -1,19 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --ink: #050505;
-  --ink-2: #0e0e0e;
-  --ink-3: #161616;
-  --blue: #ffffff;
-  --blue-2: #b0b0b0;
-  --blue-soft: rgba(255, 255, 255, 0.08);
-  --white: #ffffff;
-  --mist: #e0e0e0;
-  --muted: #808080;
-  --line: rgba(255, 255, 255, 0.10);
-  --panel: rgba(255, 255, 255, 0.04);
-  --panel-strong: rgba(255, 255, 255, 0.07);
-  --shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  --ink: #060606;
+  --ink-2: #0d0d0d;
+  --ink-3: #151515;
+  --blue: #c8c8c8;
+  --blue-2: #8a8a8a;
+  --blue-soft: rgba(200, 200, 200, 0.10);
+  --white: #f0f0f0;
+  --mist: #d4d4d4;
+  --muted: #707070;
+  --line: rgba(255, 255, 255, 0.08);
+  --panel: rgba(255, 255, 255, 0.035);
+  --panel-strong: rgba(255, 255, 255, 0.06);
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
   --container: 1180px;
   --radius: 8px;
   --header-h: 78px;
@@ -47,11 +47,11 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(118deg, transparent 4%, rgba(255, 255, 255, 0.08) 24%, rgba(180, 180, 180, 0.2) 38%, transparent 56%),
-    linear-gradient(292deg, transparent 18%, rgba(255, 255, 255, 0.14) 42%, transparent 68%);
-  background-size: 170% 170%;
-  opacity: 0.78;
-  animation: brand-sweep 18s ease-in-out infinite alternate;
+    radial-gradient(ellipse at 10% 20%, rgba(30, 45, 80, 0.08), transparent 40%),
+    radial-gradient(ellipse at 90% 80%, rgba(60, 30, 80, 0.06), transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.02), transparent 50%);
+  background-size: 100% 100%;
+  opacity: 1;
 }
 
 body.menu-open {
@@ -206,13 +206,15 @@ textarea {
 }
 
 .btn-primary {
-  color: #050505;
-  background: linear-gradient(135deg, #ffffff, #e0e0e0);
-  box-shadow: 0 16px 36px rgba(255, 255, 255, 0.12);
+  color: #0a0a0a;
+  background: linear-gradient(135deg, #ffffff, #dcdcdc);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.8), inset 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-primary:hover {
-  box-shadow: 0 22px 46px rgba(255, 255, 255, 0.22);
+  background: linear-gradient(135deg, #ffffff, #eeeeee);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.9), inset 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-ghost,
@@ -252,7 +254,7 @@ textarea {
 }
 
 .section-header h2 {
-  background: linear-gradient(180deg, #ffffff, #808080);
+  background: linear-gradient(180deg, #e0e0e0, #707070);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 700;
@@ -341,7 +343,7 @@ textarea {
 
 .text-gradient {
   color: transparent;
-  background: linear-gradient(120deg, #ffffff 0%, #e0e0e0 28%, #b0b0b0 78%, #ffffff 100%);
+  background: linear-gradient(120deg, #e8e8e8 0%, #c0c0c0 28%, #8a8a8a 78%, #d4d4d4 100%);
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -569,12 +571,13 @@ textarea {
 .auth-panel,
 .form-panel,
 .lab-panel {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.25rem;
-  background: rgba(18, 18, 18, 0.25);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, rgba(30, 30, 30, 0.4), rgba(15, 15, 15, 0.6));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .service-card,
@@ -583,7 +586,7 @@ textarea {
 .contact-card,
 .feature-card {
   padding: 24px;
-  transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
+  transition: transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 400ms ease, background 400ms ease, box-shadow 400ms ease;
 }
 
 .service-card:hover,
@@ -591,10 +594,11 @@ textarea {
 .process-card:hover,
 .contact-card:hover,
 .feature-card:hover {
-  transform: translateY(-6px);
-  border-color: rgba(180, 180, 180, 0.4);
-  background: rgba(180, 180, 180, 0.06);
-  box-shadow: 0 16px 48px rgba(255, 255, 255, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transform: translateY(-6px) scale(1.01);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(40, 40, 40, 0.5), rgba(20, 20, 20, 0.7));
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 255, 255, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .service-card h3,
@@ -724,9 +728,10 @@ textarea {
   height: 38px;
   border-radius: var(--radius);
   color: var(--white);
-  background: var(--blue);
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   font-weight: 800;
-  box-shadow: 0 0 28px rgba(255, 255, 255, 0.38);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15), inset 0 0 10px rgba(255, 255, 255, 0.05);
 }
 
 .cta-band {
@@ -1152,6 +1157,7 @@ textarea {
   color: var(--white);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(0, 87, 223, 0.95));
   box-shadow: 0 18px 42px rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(12px);
   cursor: pointer;
 }
 
@@ -1254,7 +1260,8 @@ textarea {
 
 .chat-message.user {
   align-self: flex-end;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .chat-input-row {
@@ -2221,18 +2228,19 @@ textarea {
   place-items: center;
   width: 50px;
   height: 50px;
-  border: 1px solid rgba(180, 180, 180, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 50%;
   color: var(--white);
-  background: linear-gradient(135deg, var(--blue), #cccccc);
-  box-shadow: 0 14px 36px rgba(255, 255, 255, 0.32);
+  background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
 .fab-trigger:hover {
   transform: scale(1.08);
-  box-shadow: 0 18px 44px rgba(255, 255, 255, 0.42);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .fab-trigger svg {
@@ -2770,7 +2778,7 @@ textarea {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--blue), #cccccc);
+  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
   color: var(--white);
   font-size: 0.72rem;
   font-weight: 800;
@@ -2903,9 +2911,9 @@ textarea {
     content: "";
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.04), transparent 40%);
+    background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(0, 120, 255, 0.08), transparent 40%);
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.4s ease;
     pointer-events: none;
     z-index: 1;
 }

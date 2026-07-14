@@ -39,9 +39,7 @@
         }
         .page-main {
             min-height: calc(100vh - var(--header-h));
-            background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.06), transparent 50%),
-                        radial-gradient(circle at 90% 70%, rgba(180, 180, 180, 0.05), transparent 50%),
-                        radial-gradient(circle at 50% 90%, rgba(255, 255, 255, 0.04), transparent 50%) !important;
+            background: transparent !important;
             position: relative;
             z-index: 1;
         }
@@ -52,19 +50,21 @@
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
         }
         .service-card, .project-card, .process-card, .contact-card, .feature-card {
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.04) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
             border-radius: 1.25rem !important;
-            background: rgba(18, 18, 18, 0.25) !important;
-            backdrop-filter: blur(20px) !important;
-            -webkit-backdrop-filter: blur(20px) !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
-            transition: transform 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 300ms ease, background 300ms ease, box-shadow 300ms ease !important;
+            background: linear-gradient(180deg, rgba(30, 30, 30, 0.4), rgba(15, 15, 15, 0.6)) !important;
+            backdrop-filter: blur(24px) !important;
+            -webkit-backdrop-filter: blur(24px) !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+            transition: transform 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 400ms ease, background 400ms ease, box-shadow 400ms ease !important;
         }
         .service-card:hover, .project-card:hover, .process-card:hover, .contact-card:hover, .feature-card:hover {
-            transform: translateY(-8px) !important;
-            border-color: rgba(180, 180, 180, 0.5) !important;
-            background: rgba(180, 180, 180, 0.1) !important;
-            box-shadow: 0 16px 48px rgba(255, 255, 255, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+            transform: translateY(-6px) scale(1.01) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.25) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+            background: linear-gradient(180deg, rgba(40, 40, 40, 0.5), rgba(20, 20, 20, 0.7)) !important;
+            box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 255, 255, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
         }
     </style>
     <script src="js/waves.js?v=2" defer></script>
