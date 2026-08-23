@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /portal.html
+Disallow: /js/
+Disallow: /css/
+
+Sitemap: https://yugmai.in/sitemap.xml

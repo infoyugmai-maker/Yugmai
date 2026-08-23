@@ -1,0 +1,130 @@
+rules_version = '2';
+
+// YUGM AI Firestore security rules.
+// Deploy with: firebase deploy --only firestore:rules
+// Model: users read/write their own data; projects are public-read; admin
+// (users/{uid}.role == "admin") can write everything.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Super Admin allow-list. This is the ONLY account that can grant or
+    // revoke admin privileges. It must stay in sync with SUPER_ADMIN_EMAILS
+    // in js/auth.js. Regular admins (role == "admin") can manage all other
+    // resources but CANNOT promote users to admin or modify admin profiles.
+    function isSuperAdmin() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in ['info.yugmai@gmail.com'];
+    }
+
+    function isAdmin() {
+      return isSuperAdmin()
+        || (isSignedIn()
+            && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // User profiles: a user manages their own; admin sees all.
+    // PRIVILEGE ESCALATION PROTECTION:
+    //   - Only isSuperAdmin() can set role to 'admin' (grant admin access)
+    //   - Only isSuperAdmin() can modify an existing admin's profile
+    //   - Regular admins can update non-admin users but CANNOT promote or
+    //     demote admins — Firestore will reject the write server-side.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && (request.resource.data.role != 'admin' || isSuperAdmin());
+      allow update: if
+        // Owner can update own profile but cannot self-promote to admin
+        (isOwner(uid) && (request.resource.data.role != 'admin' || isSuperAdmin()))
+        // Super Admin has unrestricted update access
+        || isSuperAdmin()
+        // Regular Admin can update non-admin users BUT:
+        //   - CANNOT set anyone's role to 'admin' (promotion blocked)
+        //   - CANNOT modify an existing admin's profile (demotion blocked)
+        || (isAdmin()
+            && resource.data.role != 'admin'
+            && request.resource.data.role != 'admin');
+      allow delete: if isAdmin();
+    }
+
+    // Projects: anyone may read (homepage + portal); only admin writes.
+    match /projects/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Participations: a user creates/reads their own; admin manages all.
+    match /participations/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Submissions: same pattern - owner creates/reads, admin reviews.
+    match /submissions/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Payouts: owner reads, admin manages.
+    match /payouts/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    // Messages: each thread id is the user's uid. User and admin read/write.
+    match /messages/{threadId} {
+      allow read, write: if isOwner(threadId) || isAdmin();
+      match /items/{itemId} {
+        allow read, create: if isOwner(threadId) || isAdmin();
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // Contacts: created via server only; admin reads/manages.
+    match /contacts/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if false; // server-side (Admin SDK) only
+    }
+
+    // Notifications: admin writes; any signed-in user reads.
+    match /notifications/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Sign-in logs: a user appends their own login event; only admin reads.
+    // Logs are immutable once written (no update/delete except by admin).
+    match /signinLogs/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Push subscriptions: each user manages their own entries.
+    match /pushSubscriptions/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Notification reads: tracks which notifications a user has seen.
+    match /notificationReads/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}

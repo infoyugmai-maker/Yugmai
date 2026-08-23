@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for a Job | YUGM AI</title>
+  <meta name="description" content="Review a YUGM AI job and submit your application.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <script src="js/waves.js?v=3" defer></script>
+  <link rel="stylesheet" href="css/jobs.css?v=1">
+</head>
+<body class="jobs-page apply-page">
+    <style>
+        .hero-waves-container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -1 !important; pointer-events: none !important; }
+        .page-main, main { min-height: calc(100vh - var(--header-h)); background: transparent !important; position: relative; z-index: 1; }
+    </style>
+    <div class="hero-waves-container"><canvas id="hero-waves"></canvas></div>
+  <div class="site-shell">
+    <header class="site-header"><div class="container header-inner"><a class="brand" href="index.html" aria-label="YUGM AI home"><img src="logo.png" alt="YUGM AI logo"></a><nav class="primary-nav" aria-label="Primary navigation"><a href="index.html">Home</a><a class="active" href="jobs.html">Jobs</a><a href="portal.html">My Portal</a></nav><div class="nav-actions"><a class="btn btn-ghost" href="jobs.html">Back to jobs</a></div></div></header>
+    <main class="page-main"><section class="apply-shell"><div class="container"><a class="back-link" href="jobs.html">← All open jobs</a><div class="apply-grid"><aside class="job-detail-card" data-job-detail><div class="jobs-loading"><span></span>Loading job details…</div></aside><section class="application-card"><p class="section-eyebrow">Application</p><h1>Apply for this job</h1><p class="application-intro" data-application-intro>Tell us why you are a good fit. Your application will appear in your portal as soon as you submit it.</p><div class="application-auth-note" data-application-auth-note hidden></div><form data-application-form novalidate></form><p class="application-status" data-application-status aria-live="polite"></p></section></div></div></section></main>
+    <footer class="site-footer"><div class="container footer-grid"><div class="footer-brand"><img src="logo.png" alt="YUGM AI"><p>© 2026 YUGM AI. All rights reserved.</p></div></div></footer>
+  </div>
+  <script type="module" src="js/firebase-config.js"></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/script.js?v=3" defer></script>
+  <script src="js/spotlight.js?v=1" defer></script>
+  <script src="js/job-apply.js" defer></script>
+</body>
+</html>

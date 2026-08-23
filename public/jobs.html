@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Jobs | YUGM AI</title>
+  <meta name="description" content="Browse open YUGM AI contributor jobs in data collection, annotation, transcription, and quality review.">
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css?v=6">
+  <script src="js/waves.js?v=3" defer></script>
+  <link rel="stylesheet" href="css/jobs.css?v=1">
+</head>
+<body class="jobs-page">
+    <style>
+        .hero-waves-container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -1 !important; pointer-events: none !important; }
+        .page-main, main { min-height: calc(100vh - var(--header-h)); background: transparent !important; position: relative; z-index: 1; }
+    </style>
+    <div class="hero-waves-container"><canvas id="hero-waves"></canvas></div>
+  <div class="site-shell">
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="index.html" aria-label="YUGM AI home"><img src="logo.png" alt="YUGM AI logo"></a>
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a href="index.html">Home</a>
+          <a class="active" href="jobs.html">Jobs</a>
+          <a href="portal.html">My Portal</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="btn btn-ghost" href="login.html">Log in</a>
+          <a class="btn btn-primary" href="register.html">Join YUGM AI</a>
+          <button class="mobile-toggle" type="button" aria-label="Open navigation" aria-expanded="false">
+            <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16"></path></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-main">
+      <section class="jobs-hero">
+        <div class="container">
+          <p class="section-eyebrow">Contributor opportunities</p>
+          <h1>Find a job that fits your skills.</h1>
+          <p>Explore live YUGM AI projects, review the requirements, and send one clear application when you are ready.</p>
+        </div>
+      </section>
+
+      <section class="jobs-content" aria-labelledby="jobs-heading">
+        <div class="container">
+          <div class="jobs-toolbar">
+            <div>
+              <p class="jobs-count" data-jobs-count aria-live="polite">Loading open jobs…</p>
+              <h2 id="jobs-heading">Open jobs</h2>
+            </div>
+            <label class="jobs-search" for="jobs-search">
+              <span class="sr-only">Search jobs</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+              <input id="jobs-search" type="search" placeholder="Search by role, language, or skill">
+            </label>
+          </div>
+          <div class="jobs-filter-row" data-job-filters aria-label="Filter jobs">
+            <button class="job-filter active" type="button" data-filter="all" aria-pressed="true">All jobs</button>
+            <button class="job-filter" type="button" data-filter="Recording" aria-pressed="false">Recording</button>
+            <button class="job-filter" type="button" data-filter="Annotation" aria-pressed="false">Annotation</button>
+            <button class="job-filter" type="button" data-filter="Transcription" aria-pressed="false">Transcription</button>
+            <button class="job-filter" type="button" data-filter="Review" aria-pressed="false">Review</button>
+          </div>
+          <div class="jobs-list" data-jobs-list>
+            <div class="jobs-loading"><span></span>Finding open opportunities…</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="container footer-grid"><div class="footer-brand"><img src="logo.png" alt="YUGM AI"><p>© 2026 YUGM AI. All rights reserved.<br>Delhi, India.</p></div><div class="footer-links"><a href="index.html">Home</a><a href="portal.html">My Portal</a><a href="contact.html">Contact</a></div></div></footer>
+  </div>
+  <script type="module" src="js/firebase-config.js"></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/script.js?v=3" defer></script>
+  <script src="js/spotlight.js?v=1" defer></script>
+  <script src="js/jobs.js" defer></script>
+</body>
+</html>
