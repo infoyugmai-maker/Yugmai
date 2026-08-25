@@ -46,6 +46,10 @@
     }
 
     function positionCards() {
+      if (window.CAROUSEL_3D_MODE) {
+        cards.forEach((c, i) => { c.classList.toggle('active', i === activeIndex); });
+        return;
+      }
       cards.forEach(function (card, i) {
         var offset = i - activeIndex;
         /* wrap around */
@@ -163,3 +167,6 @@
     initCarousel();
   }
 })();
+
+
+
