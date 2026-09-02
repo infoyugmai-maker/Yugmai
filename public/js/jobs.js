@@ -32,11 +32,32 @@
   async function init() {
     await waitForFirebase();
     var fs = getFirestoreModule();
-    var snap = await fs.getDocs(fs.query(fs.collection(getDb(), "projects"), fs.where("status", "in", ["active", "upcoming"])));
+    var snap = await fs.getDocs(fs.query(fs.collection(getDb(), "projects"), fs.where("status", "in", ["active", "upcoming"]), fs.limit(15)));
     jobs = [];
     snap.forEach(function (doc) { jobs.push(Object.assign({ id: doc.id }, doc.data())); });
     jobs.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
     render();
+
+    // Load More button
+    if (snap.size >= 15) {
+      var container = document.getElementById("jobs-grid") || document.querySelector(".jobs-grid");
+      if (container) {
+        var btn = document.createElement("button");
+        btn.className = "btn btn-outline";
+        btn.textContent = "Load More Jobs";
+        btn.style.cssText = "width:100%; margin-top:24px; grid-column:1/-1;";
+        btn.addEventListener("click", async function () {
+          btn.textContent = "Loading...";
+          btn.disabled = true;
+          var lastDoc = snap.docs[snap.docs.length - 1];
+          var next = await fs.getDocs(fs.query(fs.collection(getDb(), "projects"), fs.where("status", "in", ["active", "upcoming"]), fs.startAfter(lastDoc), fs.limit(15)));
+          next.forEach(function (doc) { jobs.push(Object.assign({ id: doc.id }, doc.data())); });
+          render();
+          btn.remove();
+        });
+        container.parentElement.appendChild(btn);
+      }
+    }
   }
   document.addEventListener("DOMContentLoaded", function () {
     var input = document.getElementById("jobs-search");

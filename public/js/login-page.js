@@ -1,5 +1,4 @@
-// Login page logic: email/password sign-in + Google sign-in.
-// Uses modular Firebase SDK via firebase-config.js + auth.js (both type="module").
+// Login page logic — direct Firebase SDK, no wrapper dependencies.
 
 document.addEventListener("DOMContentLoaded", function () {
   var form = document.querySelector("[data-login-form]");
@@ -8,134 +7,174 @@ document.addEventListener("DOMContentLoaded", function () {
   var status = document.querySelector("[data-auth-status]");
   var googleBtn = document.querySelector("[data-google-btn]");
 
-  // Sanity check: wait briefly for firebase-config.js module to populate globals
-  if (typeof getAuth !== "function") {
-    // firebase-config.js + auth.js load as modules; if DOMContentLoaded fires
-    // before the top-level await in firebase-config.js resolves, the globals
-    // aren't ready yet. Poll briefly.
-    var pollCount = 0;
-    var pollTimer = setInterval(function () {
-      pollCount++;
-      if (typeof getAuth === "function") {
-        clearInterval(pollTimer);
+  // Wait for Firebase to be ready
+  function waitForFirebaseAndInit() {
+    if (window._auth && window._authModule && window._db) {
+      initLoginPage(form, status, googleBtn);
+    } else if (window._firebaseReady) {
+      window._firebaseReady.then(function () {
         initLoginPage(form, status, googleBtn);
-      } else if (pollCount > 40) { // ~4 seconds
-        clearInterval(pollTimer);
-        fail(status, "Firebase failed to load. Please refresh the page.");
-      }
-    }, 100);
-    return;
+      }).catch(function () {
+        fail(status, "Firebase failed to load. Please refresh.");
+      });
+    } else {
+      setTimeout(waitForFirebaseAndInit, 100);
+    }
   }
-
-  initLoginPage(form, status, googleBtn);
+  waitForFirebaseAndInit();
 });
 
 function initLoginPage(form, status, googleBtn) {
-  // Flag to prevent onAuthStateChanged race condition during Google popup
-  // (copied from teanbris auth.html - critical for preventing redirect loop)
-  var googleSignInInProgress = false;
+  var auth = window._auth;
+  var am = window._authModule;
+  var fs = window._firestoreModule;
+  var db = window._db;
 
-  // If already signed in, route the user. A user WITH a profile goes to their
-  // workspace; a user signed in via Google but WITHOUT a profile yet (an
-  // incomplete signup) is sent to finish registration so they are not stranded.
-  onAuthChange(async function (user) {
-    // CRITICAL: Don't interfere if Google sign-in popup is active
-    if (googleSignInInProgress) {
-      console.log("[login] onAuthChange fired but Google sign-in in progress, skipping.");
-      return;
-    }
+  // DIRECT redirect check — no wrapper dependency
+  function doRedirect(user) {
+    try {
+      var userRef = fs.doc(db, "users", user.uid);
+      fs.getDoc(userRef).then(function (snap) {
+        var profile = snap.exists() ? snap.data() : null;
+        var role = (profile && profile.role) || null;
 
-    if (user) {
-      try {
-        var profile = await getUserDoc(user.uid);
-        var role = (profile && profile.role) || (isAdminEmail(user.email) ? "admin" : null);
-        if (role) {
-          status.style.color = "#85ffaa";
-          status.textContent = "Already signed in. Redirecting...";
-          await redirectAfterAuth(user);
-        } else {
-          status.style.color = "#85ffaa";
-          status.textContent = "Completing your registration...";
-          window.location.href = registrationCompletionUrl();
+        // Check admin email list
+        if (!role && user.email && user.email.toLowerCase() === "info.yugmai@gmail.com") {
+          role = "admin";
         }
-      } catch (err) {
-        console.error("[login] onAuthStateChanged error:", err);
-      }
-    }
-  });
 
-  // Also check for redirect result (user coming back from signInWithRedirect)
-  handleRedirectResult().then(function (result) {
-    if (result && result.user) {
-      if (result.isNew) {
-        status.style.color = "#85ffaa";
-        status.textContent = "New account. Completing registration...";
-        window.location.href = registrationCompletionUrl();
-      } else {
-        status.style.color = "#85ffaa";
-        status.textContent = "Signed in. Loading your workspace...";
-        redirectAfterAuth(result.user);
-      }
+        if (role) {
+          if (role === "admin") {
+            window.location.href = "admin.html";
+          } else {
+            window.location.href = "portal.html";
+          }
+        } else {
+          window.location.href = "register.html?complete=1";
+        }
+      }).catch(function (err) {
+        console.error("[login] getDoc error:", err);
+        window.location.href = "portal.html";
+      });
+    } catch (err) {
+      console.error("[login] doRedirect error:", err);
+      window.location.href = "portal.html";
+    }
+  }
+
+  // Check if already signed in on page load
+  if (auth.currentUser) {
+    console.log("[login] Already signed in as:", auth.currentUser.email);
+    status.style.color = "#85ffaa";
+    status.textContent = "Already signed in. Redirecting...";
+    doRedirect(auth.currentUser);
+    return;
+  }
+
+  // Listen for auth state changes (covers redirect return)
+  am.onAuthStateChanged(auth, function (user) {
+    if (user) {
+      console.log("[login] Auth state changed, user:", user.email);
+      status.style.color = "#85ffaa";
+      status.textContent = "Signed in! Redirecting...";
+      doRedirect(user);
     }
   });
 
   // Email/password sign-in
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
-    status.style.color = "";
     var email = document.getElementById("email").value.trim();
     var password = document.getElementById("password").value;
-    if (!email || !password) return fail(status, "Enter your email and password.");
+    if (!email || !password) { fail(status, "Enter your email and password."); return; }
 
-    setBusy(form, true);
+    form.querySelectorAll("button, input").forEach(function (el) { el.disabled = true; });
     status.textContent = "Signing in...";
     try {
-      var user = await loginWithEmail(email, password);
+      await am.signInWithEmailAndPassword(auth, email, password);
       status.style.color = "#85ffaa";
-      status.textContent = "Signed in. Loading your workspace...";
-      var done = await redirectAfterAuth(user);
-      if (!done) window.location.href = registrationCompletionUrl();
+      status.textContent = "Signed in! Redirecting...";
     } catch (err) {
-      console.error("[login] email sign-in error:", err.code, err.message);
-      fail(status, authError(err.code));
-      setBusy(form, false);
+      fail(status, authErrorMessage(err.code));
+      form.querySelectorAll("button, input").forEach(function (el) { el.disabled = false; });
     }
   });
 
-  // Google sign-in with race condition guard
-  googleBtn.addEventListener("click", async function () {
-    status.style.color = "";
-    status.textContent = "Opening Google sign-in...";
-
-    // CRITICAL: Set flag BEFORE the popup so onAuthChange doesn't interfere
-    googleSignInInProgress = true;
-
-    try {
-      var result = await loginWithGoogle();
-      if (result.isNew) {
-        status.style.color = "#85ffaa";
-        status.textContent = "New account. Completing registration...";
-        window.location.href = registrationCompletionUrl();
-      } else {
-        status.style.color = "#85ffaa";
-        status.textContent = "Signed in. Loading your workspace...";
-        await redirectAfterAuth(result.user);
-      }
-    } catch (err) {
-      googleSignInInProgress = false;
-      console.error("[login] Google sign-in error:", err.code, err.message);
-      if (err.code === "auth/unauthorized-domain") {
-        fail(status, "This domain is not authorized for sign-in. Add localhost to Firebase Console > Authentication > Settings > Authorized domains.");
-      } else if (err.code === "auth/operation-not-allowed") {
-        fail(status, "Google sign-in is not enabled. Enable it in Firebase Console > Authentication > Sign-in method.");
-      } else if (err.code === "auth/configuration-not-found") {
-        fail(status, "Firebase Auth is not configured. Go to Firebase Console > Authentication and enable sign-in providers.");
-      } else if (err.code === "auth/redirecting") {
-        status.style.color = "#85ffaa";
-        status.textContent = "Redirecting to Google...";
-      } else {
-        fail(status, authError(err.code));
-      }
+  // Check for redirect result on page load
+  handleRedirectResult().then(function (result) {
+    if (result && result.user) {
+      status.style.color = "#85ffaa";
+      status.textContent = "Signed in! Redirecting...";
+      doRedirect(result.user);
+    }
+  }).catch(function (err) {
+    console.error("[login] Redirect error:", err);
+    if (err.code !== "auth/redirect-cancelled-by-user") {
+      fail(status, "Google sign-in failed: " + (err.message || err.code));
     }
   });
+
+  // Google sign-in
+  if (googleBtn) {
+    googleBtn.addEventListener("click", async function () {
+      status.style.color = "";
+      status.textContent = "Opening Google sign-in...";
+
+      try {
+        const result = await loginWithGoogle();
+        if (result && result.user) {
+          status.style.color = "#85ffaa";
+          status.textContent = "Signed in! Redirecting...";
+          doRedirect(result.user);
+        }
+      } catch (err) {
+        console.error("[login] Google error:", err);
+        if (err.code === "auth/unauthorized-domain") {
+          fail(status, "This domain is not authorized. Add localhost to Firebase Console > Authentication > Settings.");
+        } else if (err.code === "auth/operation-not-allowed") {
+          fail(status, "Google sign-in is not enabled in Firebase Console.");
+        } else if (err.code === "auth/redirecting") {
+          status.style.color = "#85ffaa";
+          status.textContent = "Redirecting to Google securely...";
+        } else {
+          fail(status, authErrorMessage(err.code || err.message));
+        }
+      }
+    });
+  }
+
+  // Forgot password
+  var forgotLink = document.getElementById("forgot-password-link");
+  if (forgotLink) {
+    forgotLink.addEventListener("click", async function (e) {
+      e.preventDefault();
+      var email = document.getElementById("email").value.trim();
+      if (!email) { fail(status, "Enter your email above first, then click 'Forgot password?'."); return; }
+      try {
+        await am.sendPasswordResetEmail(auth, email);
+        status.style.color = "#85ffaa";
+        status.textContent = "Password reset email sent to " + email + ". Check your inbox.";
+      } catch (err) {
+        fail(status, authErrorMessage(err.code));
+      }
+    });
+  }
+}
+
+function fail(el, msg) {
+  if (!el) return;
+  el.style.color = "#ff8585";
+  el.textContent = msg;
+}
+
+function authErrorMessage(code) {
+  var map = {
+    "auth/invalid-email": "Please enter a valid email address.",
+    "auth/wrong-password": "Incorrect email or password.",
+    "auth/user-not-found": "Incorrect email or password.",
+    "auth/invalid-credential": "Incorrect email or password.",
+    "auth/too-many-requests": "Too many attempts. Try again later.",
+    "auth/network-request-failed": "Network error. Check your connection.",
+  };
+  return map[code] || ("Error: " + code);
 }

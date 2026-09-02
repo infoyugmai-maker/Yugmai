@@ -27,6 +27,22 @@
 
 html {
   scroll-behavior: smooth;
+  /* Hide scrollbar for cleaner app-like view */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+  display: none;
+}
+
+/* Re-position reCAPTCHA badge to avoid overlapping with Ask UMAI / FABs */
+.grecaptcha-badge {
+  right: auto !important;
+  left: 16px !important;
+  bottom: 24px !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }
 
 body {

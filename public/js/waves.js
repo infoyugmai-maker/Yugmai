@@ -364,12 +364,12 @@ void main() {
     gl.uniform4fv(uCursor, new Float32Array(U_CURSOR));
 
     /* ── Resize handling ──────────────────────────────────────── */
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var w = 0, h = 0;
-
+    /* resize */
+    var w, h;
     function resize() {
-      var container = canvas.parentElement;
-      var rect = container.getBoundingClientRect();
+      var rect = canvas.parentNode.getBoundingClientRect();
+      // Cap DPR to 1.0 (or even 0.75) for massive performance boost, since background is soft/blurry anyway
+      var dpr = Math.min(window.devicePixelRatio || 1, 1.0);
       w = Math.round(rect.width * dpr);
       h = Math.round(rect.height * dpr);
       canvas.width = w;

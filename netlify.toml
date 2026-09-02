@@ -2,12 +2,60 @@
   publish = "public"
   command = ""
 
+# API proxy to backend server
 [[redirects]]
   from = "/api/*"
   to = "https://yugmai.onrender.com/api/:splat"
   status = 200
   force = true
 
+# Clean URL redirects (must come before catch-all)
+[[redirects]]
+  from = "/portal"
+  to = "/portal.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/register.html"
+  status = 200
+
+[[redirects]]
+  from = "/about"
+  to = "/about.html"
+  status = 200
+
+[[redirects]]
+  from = "/contact"
+  to = "/contact.html"
+  status = 200
+
+[[redirects]]
+  from = "/jobs"
+  to = "/jobs.html"
+  status = 200
+
+[[redirects]]
+  from = "/privacy"
+  to = "/privacy.html"
+  status = 200
+
+[[redirects]]
+  from = "/terms"
+  to = "/terms.html"
+  status = 200
+
+# Catch-all: serve index.html for unknown routes (SPA fallback)
 [[redirects]]
   from = "/*"
   to = "/index.html"

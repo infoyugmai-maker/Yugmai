@@ -32,7 +32,10 @@ function getDriveClient() {
 // Check if a folder exists with the given name inside the parent folder
 async function getFolderByNameAndParent(folderName, parentId) {
   const drive = getDriveClient();
-  const q = `mimeType='application/vnd.google-apps.folder' and name='${folderName.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
+  let q = `mimeType='application/vnd.google-apps.folder' and name='${folderName.replace(/'/g, "\\'")}' and trashed=false`;
+  if (parentId) q += ` and '${parentId}' in parents`;
+  else q += ` and 'root' in parents`;
+  
   const res = await drive.files.list({
     q,
     fields: 'files(id, name)',
@@ -50,8 +53,9 @@ async function createFolder(folderName, parentId) {
   const fileMetadata = {
     name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
-    parents: [parentId],
   };
+  if (parentId) fileMetadata.parents = [parentId];
+  
   const res = await drive.files.create({
     resource: fileMetadata,
     fields: 'id',
@@ -78,8 +82,8 @@ export async function uploadFileToDrive(fileStream, mimeType, fileName, parentId
   const drive = getDriveClient();
   const fileMetadata = {
     name: fileName,
-    parents: [parentId],
   };
+  if (parentId) fileMetadata.parents = [parentId];
   const media = {
     mimeType: mimeType,
     body: fileStream,

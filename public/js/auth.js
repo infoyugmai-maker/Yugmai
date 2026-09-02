@@ -190,12 +190,22 @@ function registrationCompletionUrl() {
 }
 
 async function redirectAfterAuth(user) {
-  const profile = await getUserDoc(user.uid);
-  if (!profile) {
-    return false;
+  try {
+    const profile = await getUserDoc(user.uid);
+    if (!profile) {
+      // No profile — send to registration
+      window.location.href = getAuthNextUrl() || "/register?complete=1";
+      return true;
+    }
+    const target = getAuthNextUrl() || routeForRole(profile.role);
+    window.location.href = target;
+    return true;
+  } catch (err) {
+    console.error("[auth] redirectAfterAuth error:", err);
+    // Fallback: send to portal (most users are non-admin)
+    window.location.href = "/portal";
+    return true;
   }
-  window.location.href = getAuthNextUrl() || routeForRole(profile.role);
-  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,60 +241,117 @@ async function loginWithEmail(email, password) {
 }
 
 // ---------------------------------------------------------------------------
+// Password reset (modular SDK)
+// ---------------------------------------------------------------------------
+async function sendPasswordReset(email) {
+  await waitForFirebase();
+  const am = getAuthModule();
+  return am.sendPasswordResetEmail(getAuth(), email);
+}
+
+// ---------------------------------------------------------------------------
 // Google sign-in (modular SDK, matching teanbris pattern).
 // Uses popup directly. If popup fails with known codes, falls back to redirect.
 // Returns { user, isNew }.
 // ---------------------------------------------------------------------------
 async function processGoogleUser(user) {
-  let existing = await getUserDoc(user.uid);
+  try {
+    let existing = await getUserDoc(user.uid);
 
-  // Admin auto-provisioning
-  if (isAdminEmail(user.email)) {
-    const fs = getFirestoreModule();
-    if (!existing || existing.role !== "admin") {
-      await fs.setDoc(fs.doc(getDb(), "users", user.uid), {
-        name: user.displayName || (existing && existing.name) || "Admin",
-        email: user.email || "",
-        role: "admin",
-        registeredVia: "google",
-        createdAt: (existing && existing.createdAt) || fs.serverTimestamp(),
-      }, { merge: true });
-      existing = await getUserDoc(user.uid);
+    // Admin auto-provisioning
+    if (isAdminEmail(user.email)) {
+      const fs = getFirestoreModule();
+      if (!existing || existing.role !== "admin") {
+        await fs.setDoc(fs.doc(getDb(), "users", user.uid), {
+          name: user.displayName || (existing && existing.name) || "Admin",
+          email: user.email || "",
+          role: "admin",
+          registeredVia: "google",
+          createdAt: (existing && existing.createdAt) || fs.serverTimestamp(),
+        }, { merge: true });
+        existing = await getUserDoc(user.uid);
+      }
+      await logSignIn(user, "google");
+      return { user: user, isNew: false };
     }
-    await logSignIn(user, "google");
-    return { user: user, isNew: false };
-  }
 
-  if (existing) await logSignIn(user, "google");
-  return { user: user, isNew: !existing };
+    if (existing) {
+      await logSignIn(user, "google");
+      return { user: user, isNew: false };
+    }
+
+    // New user — create profile
+    const fs = getFirestoreModule();
+    await fs.setDoc(fs.doc(getDb(), "users", user.uid), {
+      name: user.displayName || "",
+      email: user.email || "",
+      role: "freelancer",
+      registeredVia: "google",
+      createdAt: fs.serverTimestamp(),
+    });
+    await logSignIn(user, "google");
+    return { user: user, isNew: true };
+  } catch (err) {
+    console.error("[auth] processGoogleUser error:", err);
+    // Even if profile creation fails, the user IS signed in — return them as new
+    return { user: user, isNew: true };
+  }
 }
 
 async function loginWithGoogle() {
   await waitForFirebase();
   const am = getAuthModule();
+  const auth = getAuth();
   const provider = new am.GoogleAuthProvider();
   provider.addScope("email");
   provider.addScope("profile");
 
+  // We no longer force redirect on localhost, because strict privacy extensions in normal browser profiles 
+  // will completely clear the cross-origin OAuth state during signInWithRedirect, breaking it silently.
+  // We will rely on signInWithPopup. Since we are using the python server, there are no COOP headers to break it.
+
+  // Strategy 1: Try popup
   try {
-    const result = await am.signInWithPopup(getAuth(), provider);
-    return await processGoogleUser(result.user);
-  } catch (err) {
-    // Popup failed - fall back to redirect
-    const fallbackCodes = [
+    const result = await am.signInWithPopup(auth, provider);
+    if (result && result.user) {
+      return await processGoogleUser(result.user);
+    }
+  } catch (popupErr) {
+    console.warn("[auth] Popup sign-in failed:", popupErr.code, popupErr.message);
+
+    // If popup was closed/blocked/internal error, try redirect
+    const redirectCodes = [
       "auth/popup-closed-by-user",
       "auth/popup-blocked",
       "auth/cancelled-popup-request",
       "auth/internal-error",
+      "auth/network-request-failed",
     ];
-    if (fallbackCodes.indexOf(err.code) !== -1) {
-      await am.signInWithRedirect(getAuth(), provider);
+    if (redirectCodes.indexOf(popupErr.code) !== -1) {
+      // Strategy 2: Redirect fallback
+      await am.signInWithRedirect(auth, provider);
+      // signInWithRedirect navigates away — this line won't execute
       const e = new Error("redirecting");
       e.code = "auth/redirecting";
       throw e;
     }
-    throw err;
+    // Unknown error — rethrow
+    throw popupErr;
   }
+
+  // Strategy 3: If popup returned but no user, wait for auth state
+  return new Promise(function (resolve, reject) {
+    var timeout = setTimeout(function () {
+      reject(new Error("Google sign-in timed out. Please try again."));
+    }, 15000);
+
+    am.onAuthStateChanged(auth, function (user) {
+      if (user) {
+        clearTimeout(timeout);
+        processGoogleUser(user).then(resolve).catch(reject);
+      }
+    });
+  });
 }
 
 // Call on page load. If user just came back from a redirect sign-in, finish it.
@@ -296,10 +363,11 @@ async function handleRedirectResult() {
     if (result && result.user) {
       return await processGoogleUser(result.user);
     }
+    return null;
   } catch (err) {
     console.warn("[auth] redirect result error:", err.code, err.message);
+    throw err;
   }
-  return null;
 }
 
 async function completeGoogleProfile(user, { phone, accountType, companyName }) {
@@ -318,7 +386,7 @@ async function completeGoogleProfile(user, { phone, accountType, companyName }) 
 }
 
 window.logout = function () {
-  return getAuthModule().signOut(getAuth()).then(function () { window.location.href = "/"; });
+  return getAuthModule().signOut(getAuth()).then(function () { window.location.href = "index.html"; });
 };
 
 // ---------------------------------------------------------------------------
@@ -330,7 +398,7 @@ window.logout = function () {
 function guardPage(requirement, onReady) {
   onAuthChange(async (user) => {
     if (!user) {
-      window.location.href = "/login";
+      window.location.href = "login.html";
       return;
     }
     const profile = await getUserDoc(user.uid);
@@ -339,11 +407,11 @@ function guardPage(requirement, onReady) {
     if (!role) {
       // Signed in but no profile or no role (incomplete signup / legacy user
       // who registered before portals existed) — send to complete registration.
-      window.location.href = "/register?complete=1";
+      window.location.href = "/register.html?complete=1";
       return;
     }
     if (requirement === "admin" && role !== "admin") {
-      window.location.href = "/portal";
+      window.location.href = "/portal.html";
       return;
     }
     
@@ -366,6 +434,7 @@ async function authHeader() {
   const token = await user.getIdToken();
   return { Authorization: "Bearer " + token };
 }
+window.authHeader = authHeader;
 
 function fail(el, msg) {
   if (!el) return;

@@ -48,6 +48,15 @@ export class SceneManager {
     // Window Resize
     this.onResize = this.onResize.bind(this);
     window.addEventListener('resize', this.onResize);
+
+    // Pause rendering when off-screen for massive performance boost
+    this.isVisible = false;
+    this.observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        this.isVisible = entry.isIntersecting;
+      });
+    }, { threshold: 0.0 });
+    this.observer.observe(this.container);
   }
 
   onResize() {
@@ -60,15 +69,19 @@ export class SceneManager {
   renderLoop() {
     if (!this.active) return;
     this.rafId = requestAnimationFrame(this.renderLoop);
-    // Hook for specific scene updates
-    if (this.onUpdate) this.onUpdate(this.clock.getDelta(), this.clock.getElapsedTime());
-    this.renderer.render(this.scene, this.camera);
+    
+    // Only render and update if visible
+    if (this.isVisible) {
+      if (this.onUpdate) this.onUpdate(this.clock.getDelta(), this.clock.getElapsedTime());
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   dispose() {
     if (!this.active) return;
     window.removeEventListener('resize', this.onResize);
     cancelAnimationFrame(this.rafId);
+    if (this.observer) this.observer.disconnect();
     
     // Dispose WebGL resources
     this.scene.traverse((object) => {

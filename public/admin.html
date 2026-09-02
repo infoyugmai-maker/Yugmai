@@ -6,13 +6,20 @@
     <title>Admin | YUGM AI</title>
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" href="logo.png" type="image/png">
-    <link rel="stylesheet" href="css/style.css?v=6">
+    <link rel="stylesheet" href="css/style.css?v=11">
     <script src="js/waves.js?v=3" defer></script>
 </head>
 <body>
     <style>
         .hero-waves-container { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -1 !important; pointer-events: none !important; }
         .page-main, main { min-height: calc(100vh - var(--header-h)); background: transparent !important; position: relative; z-index: 1; }
+        /* Compact tables — fit without horizontal scroll */
+        .admin-table-wrap { overflow-x: auto; max-width: 100%; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .admin-table th { padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+        .admin-table td { padding: 7px 10px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .admin-table td:last-child { white-space: nowrap; }
+        .admin-table .btn-sm { padding: 4px 8px; font-size: 11px; }
     </style>
     <div class="hero-waves-container"><canvas id="hero-waves"></canvas></div>
     <div class="site-shell">
@@ -57,7 +64,9 @@
                         <button class="portal-tab" data-tab="logs">Sign-in Logs</button>
                         <button class="portal-tab" data-tab="announce">Announcements</button>
                         <button class="portal-tab" data-tab="payments">Payments & Invoicing</button>
+                        <button class="portal-tab" data-tab="files">My Files</button>
                         <button class="portal-tab" data-tab="languages">Languages</button>
+                        <button class="portal-tab" data-tab="export">Export Data</button>
                         <button class="portal-tab" data-tab="admin-access" style="display:none;">🔐 Admin Access</button>
                     </div>
 
@@ -203,6 +212,17 @@
                         <div data-admin-payments></div>
                     </div>
 
+                    <!-- My Files -->
+                    <div class="portal-panel hidden" data-panel="files">
+                        <div class="portal-welcome" style="margin-bottom:2rem;">
+                            <h2 style="font-size:1.8rem;">My Files</h2>
+                            <p class="section-copy">View all uploaded files across the platform — CVs, invoices, NDAs, and submission documents.</p>
+                        </div>
+                        <div data-admin-files>
+                            <p class="section-copy">Loading files...</p>
+                        </div>
+                    </div>
+
                     <!-- Languages -->
                     <div class="portal-panel hidden" data-panel="languages">
                         <div class="admin-toolbar">
@@ -216,6 +236,76 @@
                             </button>
                             <h2 class="lang-detail-title" data-lang-detail-title></h2>
                             <div data-lang-detail-body></div>
+                        </div>
+                    </div>
+
+                    <!-- Export Data -->
+                    <div class="portal-panel hidden" data-panel="export">
+                        <div class="portal-welcome" style="margin-bottom:2rem;">
+                            <h2 style="font-size:1.8rem;">Export Data</h2>
+                            <p class="section-copy">Download CSV exports with optional date range and project filters. Leave filters empty to export all data.</p>
+                        </div>
+
+                        <!-- Global Filters -->
+                        <div style="display:flex; gap:12px; align-items:end; margin-bottom:24px; padding:16px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">From Date</label>
+                                <input type="date" id="export-date-from" style="width:100%; padding:8px; background:var(--ink-2); border:1px solid var(--line); border-radius:6px; color:var(--text);">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">To Date</label>
+                                <input type="date" id="export-date-to" style="width:100%; padding:8px; background:var(--ink-2); border:1px solid var(--line); border-radius:6px; color:var(--text);">
+                            </div>
+                            <div style="flex:1; min-width:200px;">
+                                <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Project (optional)</label>
+                                <select id="export-project-filter" style="width:100%; padding:8px; background:var(--ink-2); border:1px solid var(--line); border-radius:6px; color:var(--text);">
+                                    <option value="">All Projects</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Export Cards -->
+                        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;" data-export-cards>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Users & Registrations</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-users>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadUsersCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Participation</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-parts>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadRegistrationsCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Work Submissions</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-subs>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadSubmissionsCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Contacts</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-contacts>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadContactsCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Sign-in Logs</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-logs>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadLogsCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Announcements</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-announce>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadAnnouncementsCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Projects</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-projects>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadProjectsCSV()">Download CSV</button>
+                            </div>
+                            <div style="padding:20px; background:var(--ink-3); border:1px solid var(--line); border-radius:12px;">
+                                <h3 style="margin-bottom:4px;">Languages</h3>
+                                <p style="font-size:12px; color:var(--muted); margin-bottom:12px;" data-export-count-langs>Loading...</p>
+                                <button class="btn btn-primary btn-sm" onclick="downloadLanguagesCSV()">Download CSV</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -249,10 +339,11 @@
     </div>
 
     <script type="module" src="js/firebase-config.js"></script>
-    <script src="js/auth.js" defer></script>
+    <script src="js/auth.js?v=4" defer></script>
     <script src="js/script.js?v=3" defer></script>
     <script src="js/spotlight.js?v=1" defer></script>
-    <script src="js/admin.js" defer></script>
+    <script src="js/admin.js?v=8" defer></script>
 <script type="module" src="js/three/global.js"></script>
 </body>
 </html>
+

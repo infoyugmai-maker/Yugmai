@@ -67,7 +67,13 @@ service cloud.firestore {
     match /participations/{id} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (
+        isSignedIn() 
+        && resource.data.userId == request.auth.uid
+        // Prevent users from hacking their status to approved or paid
+        && (request.resource.data.status == resource.data.status || request.resource.data.status != 'approved')
+        && (request.resource.data.invoiceStatus == resource.data.invoiceStatus || request.resource.data.invoiceStatus != 'paid')
+      );
       allow delete: if isAdmin();
     }
 
@@ -75,8 +81,8 @@ service cloud.firestore {
     match /submissions/{id} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow delete: if isAdmin();
+      // Freelancers only ADD submissions, they never update or delete them. Only admin updates them (to approve/reject)
+      allow update, delete: if isAdmin();
     }
 
     // Payouts: owner reads, admin manages.

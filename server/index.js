@@ -91,7 +91,13 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 const app = express();
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+// Disable CSP/COEP to avoid breaking embedded assets/iframes during dev.
+// Crucially, set COOP to allow popups, otherwise Firebase Google Login (signInWithPopup) breaks on localhost:3000!
+app.use(helmet({ 
+  contentSecurityPolicy: false, 
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 app.use(cors({
   origin: [
     "https://yugmai.in",
@@ -274,10 +280,18 @@ const uploadMulter = multer({ dest: path.resolve(__dirname, 'uploads/') });
 // ---------------------------------------------------------------------------
 app.post("/api/drive/upload", requireAuth, uploadMulter.single("file"), async (req, res) => {
   try {
-    const { role, userName, projectName, docType } = req.body;
+    const { role, userName, projectName, docType, oldFileId } = req.body;
     if (!req.file) return res.status(400).json({ error: "No file provided" });
-    if (!process.env.DRIVE_ROOT_FOLDER_ID) {
-      return res.status(500).json({ error: "Google Drive integration is not fully configured (Missing root ID)." });
+
+    // Auto-delete old file on re-upload (CV, invoice, NDA replacement)
+    if (oldFileId) {
+      try {
+        await deleteFileFromDrive(oldFileId);
+        console.log(`[drive-upload] Deleted old file: ${oldFileId}`);
+      } catch (delErr) {
+        console.warn(`[drive-upload] Could not delete old file ${oldFileId}:`, delErr.message);
+        // Continue with upload even if delete fails (file may already be deleted)
+      }
     }
 
     let folderPath = [];

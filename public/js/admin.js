@@ -22,6 +22,8 @@
       orderBy: function (field, dir) { return wrapQuery(_fs.query(q, _fs.orderBy(field, dir || "asc"))); },
       limit: function (n) { return wrapQuery(_fs.query(q, _fs.limit(n))); },
       limitToLast: function (n) { return wrapQuery(_fs.query(q, _fs.limitToLast(n))); },
+      startAfter: function (val) { return wrapQuery(_fs.query(q, _fs.startAfter(val && val._raw ? val._raw : val))); },
+      startAt: function (val) { return wrapQuery(_fs.query(q, _fs.startAt(val && val._raw ? val._raw : val))); },
       get: function () { return _fs.getDocs(q).then(wrapSnap); },
       onSnapshot: function (cb) { return _fs.onSnapshot(q, function (snap) { cb(wrapSnap(snap)); }); },
     };
@@ -47,7 +49,7 @@
   }
 
   function wrapDocSnap(d) {
-    return { id: d.id, exists: d.exists(), data: function () { return d.data(); }, ref: _fs.doc(_realDb, d.ref.path) };
+    return { id: d.id, exists: d.exists(), data: function () { return d.data(); }, ref: _fs.doc(_realDb, d.ref.path), _raw: d };
   }
 
   function wrapDocRef(ref) {
@@ -99,6 +101,84 @@
 var userCache = {};
 var projectCache = {};
 
+// ---------------------------------------------------------------------------
+// Pagination utility — cursor-based "Load More" for any Firestore collection
+// ---------------------------------------------------------------------------
+function PaginatedLoader(collectionRef, pageSize, renderItem, containerEl, options) {
+  this.ref = collectionRef;
+  this.pageSize = pageSize || 15;
+  this.renderItem = renderItem;
+  this.container = containerEl;
+  this.options = options || {};
+  this.lastDoc = null;
+  this.loading = false;
+  this.exhausted = false;
+  this.items = [];
+}
+
+PaginatedLoader.prototype.loadMore = async function () {
+  if (this.loading || this.exhausted) return;
+  this.loading = true;
+
+  // Show loading indicator
+  var loadBtn = this.container.querySelector("[data-load-more]");
+  if (loadBtn) { loadBtn.textContent = "Loading..."; loadBtn.disabled = true; }
+
+    try {
+      var q = this.ref;
+      if (this.lastDoc) {
+        q = q.startAfter(this.lastDoc);
+      }
+      q = q.limit(this.pageSize);
+      var snap = await q.get();
+
+    if (snap.empty || snap.size < this.pageSize) {
+      this.exhausted = true;
+    }
+
+    var newItems = [];
+    snap.forEach(function (doc) {
+      newItems.push({ id: doc.id, data: doc.data() });
+    });
+
+    if (newItems.length > 0) {
+      this.lastDoc = snap.docs[snap.docs.length - 1];
+      this.items = this.items.concat(newItems);
+    }
+
+    // Render new items
+    var self = this;
+    newItems.forEach(function (item) {
+      self.renderItem(item, self.container);
+    });
+
+    // Update or remove "Load More" button
+    if (loadBtn) loadBtn.remove();
+    if (!this.exhausted) {
+      var btn = document.createElement("button");
+      btn.className = "btn btn-outline";
+      btn.setAttribute("data-load-more", "");
+      btn.textContent = "Load More";
+      btn.style.cssText = "width:100%; margin-top:16px;";
+      var self2 = this;
+      btn.addEventListener("click", function () { self2.loadMore(); });
+      this.container.appendChild(btn);
+    }
+  } catch (err) {
+    console.error("[PaginatedLoader]", err);
+    if (loadBtn) { loadBtn.textContent = "Retry"; loadBtn.disabled = false; loadBtn.onclick = () => this.loadMore(); }
+  }
+
+  this.loading = false;
+};
+
+PaginatedLoader.prototype.reset = function () {
+  this.lastDoc = null;
+  this.exhausted = false;
+  this.items = [];
+  this.container.innerHTML = "";
+};
+
 function initAdmin(user, profile) {
   var userNameEl = document.querySelector("[data-user-name]");
   if (userNameEl) userNameEl.textContent = profile.name || user.email;
@@ -123,6 +203,8 @@ function initAdmin(user, profile) {
     logs: loadAdminLogs,
     announce: loadAnnouncements,
     payments: loadAdminPayments,
+    files: loadAdminFiles,
+    export: loadExportData,
     languages: loadLanguages,
     "admin-access": loadAdminAccess,
   };
@@ -206,15 +288,15 @@ function debounce(fn, ms) {
 // Caches
 // ---------------------------------------------------------------------------
 async function ensureUsers() {
-  if (Object.keys(userCache).length) return userCache;
-  var snap = await db.collection("users").get();
+  if (Object.keys(userCache).length > 500) return userCache;
+  var snap = await db.collection("users").limit(10000).get();
   snap.forEach(function (d) { userCache[d.id] = d.data(); });
   return userCache;
 }
 
 async function ensureProjects() {
-  if (Object.keys(projectCache).length) return projectCache;
-  var snap = await db.collection("projects").get();
+  if (Object.keys(projectCache).length > 500) return projectCache;
+  var snap = await db.collection("projects").limit(10000).get();
   snap.forEach(function (d) { projectCache[d.id] = d.data(); });
   return projectCache;
 }
@@ -237,12 +319,13 @@ async function loadOverview() {
   if (!container) return;
   container.innerHTML = '<p class="section-copy">Loading metrics...</p>';
   try {
+    // Use limit queries — we only need counts, not full documents
     var results = await Promise.all([
-      db.collection("users").get(),
-      db.collection("projects").get(),
-      db.collection("participations").get(),
-      db.collection("submissions").get(),
-      db.collection("contacts").get(),
+      db.collection("users").limit(10000).get(),
+      db.collection("projects").limit(10000).get(),
+      db.collection("participations").limit(10000).get(),
+      db.collection("submissions").limit(10000).get(),
+      db.collection("contacts").limit(10000).get(),
     ]);
     var users = results[0], projects = results[1], parts = results[2], subs = results[3], contacts = results[4];
 
@@ -318,6 +401,7 @@ async function loadAdminProjects() {
         (p.status === "active" 
           ? '<button class="btn btn-ghost btn-sm" data-end-project="' + p.id + '">End</button>'
           : '<button class="btn btn-ghost btn-sm" data-restart-project="' + p.id + '">Restart</button>') +
+        '<button class="btn btn-ghost btn-sm" data-upload-validation="' + p.id + '">Validation</button>' +
         '<button class="btn btn-ghost btn-sm btn-danger" data-delete-project="' + p.id + '">Delete</button>' +
         '</td></tr>');
     });
@@ -333,13 +417,24 @@ async function loadAdminProjects() {
     
     container.querySelectorAll("[data-end-project]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
-        if (!(await uiConfirm("End this project? This will hide it from the active list and notify participants."))) return;
+        if (!(await uiConfirm("End this project? This will automatically submit all in-progress work for review and notify participants."))) return;
         var pid = btn.dataset.endProject;
         btn.textContent = "Ending...";
         btn.disabled = true;
         try {
           await db.collection("projects").doc(pid).update({ status: "ended" });
-          await notifyEnrolledUsers(pid, "Project Ended", "A project you were participating in has officially ended.", "portal.html");
+          
+          // Auto-submit all in-progress participations
+          var partsSnap = await db.collection("participations").where("projectId", "==", pid).where("status", "==", "in-progress").get();
+          var batchUpdates = [];
+          partsSnap.forEach(function(doc) {
+            batchUpdates.push(db.collection("participations").doc(doc.id).update({ step: 4, status: "submitted" }));
+          });
+          await Promise.all(batchUpdates);
+
+          await notifyEnrolledUsers(pid, "Project Ended", "The project has ended and your uploaded work has been automatically submitted for review.", "portal.html");
+          uiAlert("Project ended and all pending work was auto-submitted.");
+          loadAdminProjects();
         } catch (e) {
           uiAlert("Error ending project: " + e.message);
           btn.textContent = "End";
@@ -350,15 +445,28 @@ async function loadAdminProjects() {
 
     container.querySelectorAll("[data-restart-project]").forEach(function (btn) {
       btn.addEventListener("click", async function () {
-        if (!(await uiConfirm("Restart this project? Freelancers who previously completed it will be able to join it again as a new cycle."))) return;
+        if (!(await uiConfirm("Restart this project? This will create a completely new copy (Batch 2) of this project so previous data is safely archived."))) return;
         var pid = btn.dataset.restartProject;
         btn.textContent = "Restarting...";
         btn.disabled = true;
         try {
           var p = projectCache[pid] || {};
           var newIter = (p.iteration || 1) + 1;
-          await db.collection("projects").doc(pid).update({ status: "active", iteration: newIter });
-          await notifyEnrolledUsers(pid, "Project Restarted", "A project you previously worked on has restarted for a new cycle! You can now join it again.", "portal.html");
+          
+          // Duplicate project with a new ID
+          var newProjectData = Object.assign({}, p);
+          delete newProjectData.id;
+          newProjectData.name = (p.name || "Project") + " (Batch " + newIter + ")";
+          newProjectData.iteration = newIter;
+          newProjectData.status = "active";
+          
+          var _fs = window._firestoreModule;
+          newProjectData.createdAt = _fs.serverTimestamp();
+          
+          await db.collection("projects").add(newProjectData);
+          
+          uiAlert("Success! The project has been duplicated as a new batch.");
+          loadAdminProjects(); // reload list
         } catch (e) {
           uiAlert("Error restarting project: " + e.message);
           btn.textContent = "Restart";
@@ -371,6 +479,13 @@ async function loadAdminProjects() {
       btn.addEventListener("click", async function () {
         if (!(await uiConfirm("Delete this project?"))) return;
         await db.collection("projects").doc(btn.dataset.deleteProject).delete();
+      });
+    });
+
+    // Validation CSV upload
+    container.querySelectorAll("[data-upload-validation]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        openValidationUpload(btn.dataset.uploadValidation);
       });
     });
   }
@@ -741,6 +856,18 @@ async function loadParticipation() {
     unsubParticipation();
     unsubParticipation = null;
   }
+
+  // CSV download button
+  if (!container.parentElement.querySelector("[data-download-reg-csv]")) {
+    var csvBtn = document.createElement("button");
+    csvBtn.className = "btn btn-outline btn-sm";
+    csvBtn.setAttribute("data-download-reg-csv", "");
+    csvBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Download CSV';
+    csvBtn.style.cssText = "float:right; margin-bottom:12px;";
+    csvBtn.addEventListener("click", function () { downloadRegistrationsCSV(); });
+    container.parentElement.insertBefore(csvBtn, container);
+  }
+
   container.innerHTML = "<p>Loading...</p>";
 
   var filterSelect = document.querySelector("[data-participation-filter]");
@@ -763,10 +890,15 @@ async function loadParticipation() {
       
       var viewBtn = p.customAnswers ? '<button class="btn btn-ghost btn-sm" data-view-answers="' + d.id + '">View Answers</button> ' : '';
       
+      var displayStatus = statusBadge(status);
+      if (status === "in-progress" && p.finishedUploading) {
+        displayStatus += '<br><span style="font-size:10px; color:var(--green); font-weight:bold;">✓ Uploads Done</span>';
+      }
+      
       rows.push(
         '<tr><td>' + esc(u.name || "-") + '</td><td>' + esc(u.phone || "-") + '</td>' +
         '<td>' + esc(u.companyName || "-") + '</td><td>' + esc(u.email || "-") + '</td>' +
-        '<td>' + esc(projectName(p.projectId)) + '</td><td>' + statusBadge(status) + '</td>' +
+        '<td>' + esc(projectName(p.projectId)) + '</td><td>' + displayStatus + '</td>' +
         '<td>' + viewBtn +
         (status === "interested" ? '<button class="btn btn-ghost btn-sm btn-success" data-approve-part="' + d.id + '">Approve</button> ' +
         '<button class="btn btn-ghost btn-sm btn-danger" data-reject-part="' + d.id + '">Reject</button>' : '') +
@@ -834,26 +966,102 @@ async function loadParticipation() {
 
   try {
     await Promise.all([ensureUsers(), ensureProjects()]);
-    
-    // We attach event directly since container innerHTML resets only the list, not the filter select which is outside it.
-    if (filterSelect) {
-      var newSelect = filterSelect.cloneNode(true);
-      filterSelect.parentNode.replaceChild(newSelect, filterSelect);
-      filterSelect = newSelect;
+
+    // Paginated loading with Load More
+    var lastDoc = null;
+    var pageSize = 15;
+    var loading = false;
+    var exhausted = false;
+
+    async function loadMoreParts() {
+      if (loading || exhausted) return;
+      loading = true;
+      var loadBtn = container.querySelector("[data-load-more]");
+      if (loadBtn) { loadBtn.textContent = "Loading..."; loadBtn.disabled = true; }
+
+      try {
+        var q = db.collection("participations").orderBy("createdAt", "desc").limit(pageSize);
+        if (lastDoc) q = db.collection("participations").orderBy("createdAt", "desc").startAfter(lastDoc).limit(pageSize);
+        var snap = await q.get();
+
+        if (snap.empty || snap.size < pageSize) exhausted = true;
+        if (snap.docs.length > 0) lastDoc = snap.docs[snap.docs.length - 1];
+
+        if (loadBtn) loadBtn.remove();
+
+        snap.forEach(function (d) {
+          var p = d.data();
+          var status = p.status || "interested";
+          var u = userCache[p.userId] || {};
+          var tbody = container.querySelector("tbody");
+          if (!tbody) {
+            container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+              '<th>Name</th><th>Phone</th><th>Email</th><th>Project</th><th>Status</th><th>Action</th>' +
+              '</tr></thead><tbody></tbody></table></div>';
+            tbody = container.querySelector("tbody");
+          }
+          var viewBtn = p.customAnswers ? '<button class="btn btn-ghost btn-sm" data-view-answers="' + d.id + '">View</button> ' : '';
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td>' + esc(u.name || "-") + '</td>' +
+            '<td>' + esc(u.phone || "-") + '</td>' +
+            '<td>' + esc(u.email || "-") + '</td>' +
+            '<td>' + esc(projectName(p.projectId)) + '</td>' +
+            '<td>' + statusBadge(status) + '</td>' +
+            '<td>' + viewBtn +
+            (status === "interested" ? '<button class="btn btn-ghost btn-sm btn-success" data-approve-part="' + d.id + '">Approve</button> ' +
+            '<button class="btn btn-ghost btn-sm btn-danger" data-reject-part="' + d.id + '">Reject</button>' : '') + '</td>';
+          tbody.appendChild(tr);
+
+          tr.querySelector("[data-approve-part]")?.addEventListener("click", function () { setParticipationStatus(d.id, "approved"); });
+          tr.querySelector("[data-reject-part]")?.addEventListener("click", function () { setParticipationStatus(d.id, "rejected"); });
+          tr.querySelector("[data-view-answers]")?.addEventListener("click", function () { viewAnswers(d.id); });
+        });
+
+        if (!exhausted) {
+          var btn = document.createElement("button");
+          btn.className = "btn btn-outline";
+          btn.setAttribute("data-load-more", "");
+          btn.textContent = "Load More";
+          btn.style.cssText = "width:100%; margin-top:16px;";
+          btn.addEventListener("click", loadMoreParts);
+          container.appendChild(btn);
+        }
+      } catch (err) {
+        container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
+      }
+      loading = false;
     }
 
-    unsubParticipation = db.collection("participations").orderBy("createdAt", "desc").onSnapshot(function (snap) {
-      // Re-bind the listener to use the latest snap
-      if (filterSelect) {
-        filterSelect.onchange = function() { renderParticipation(snap); };
-      }
-      renderParticipation(snap);
-    }, function (err) {
-      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
-    });
+    await loadMoreParts();
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
   }
+}
+
+async function viewAnswers(partId) {
+  var partSnap = await db.collection("participations").doc(partId).get();
+  var data = partSnap.exists ? partSnap.data() : {};
+  if (!data.customAnswers) { uiAlert("No answers found."); return; }
+  var html = '<div style="text-align:left; max-height:400px; overflow-y:auto;">';
+  for (var key in data.customAnswers) {
+    var val = data.customAnswers[key];
+    html += '<p><strong>' + esc(key) + ':</strong><br>';
+    if (val && val.toString().startsWith("http")) {
+      html += '<a href="' + esc(val) + '" target="_blank" style="color:var(--blue);">' + esc(val) + '</a>';
+    } else {
+      html += esc(String(val));
+    }
+    html += '</p>';
+  }
+  html += '</div>';
+  var overlay = document.createElement("div");
+  overlay.className = "full-screen-modal-overlay";
+  overlay.innerHTML = '<div class="full-screen-modal-content" style="max-width:600px;">' +
+    '<h2>Application Answers</h2>' + html +
+    '<div style="margin-top:20px; text-align:right;"><button class="btn btn-outline" onclick="this.closest(\'.full-screen-modal-overlay\').remove()">Close</button></div></div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
 }
 
 async function setParticipationStatus(partId, status) {
@@ -881,11 +1089,23 @@ let unsubSubmissions = null;
 async function loadAdminSubmissions() {
   var container = document.querySelector("[data-admin-submissions]");
   if (!container) return;
-  
+
   if (unsubSubmissions) {
     unsubSubmissions();
     unsubSubmissions = null;
   }
+
+  // CSV download button
+  if (!container.parentElement.querySelector("[data-download-subs-csv]")) {
+    var csvBtn = document.createElement("button");
+    csvBtn.className = "btn btn-outline btn-sm";
+    csvBtn.setAttribute("data-download-subs-csv", "");
+    csvBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Download CSV';
+    csvBtn.style.cssText = "float:right; margin-bottom:12px;";
+    csvBtn.addEventListener("click", function () { downloadSubmissionsCSV(); });
+    container.parentElement.insertBefore(csvBtn, container);
+  }
+
   container.innerHTML = "<p>Loading...</p>";
 
   var filterSelect = document.querySelector("[data-work-filter]");
@@ -928,21 +1148,75 @@ async function loadAdminSubmissions() {
 
   try {
     await Promise.all([ensureUsers(), ensureProjects()]);
-    
-    if (filterSelect) {
-      var newSelect = filterSelect.cloneNode(true);
-      filterSelect.parentNode.replaceChild(newSelect, filterSelect);
-      filterSelect = newSelect;
+
+    // Paginated loading with Load More
+    var lastDoc = null;
+    var pageSize = 15;
+    var loading = false;
+    var exhausted = false;
+
+    async function loadMoreSubmissions() {
+      if (loading || exhausted) return;
+      loading = true;
+      var loadBtn = container.querySelector("[data-load-more]");
+      if (loadBtn) { loadBtn.textContent = "Loading..."; loadBtn.disabled = true; }
+
+      try {
+        var q = db.collection("submissions").orderBy("submittedAt", "desc").limit(pageSize);
+        if (lastDoc) q = db.collection("submissions").orderBy("submittedAt", "desc").startAfter(lastDoc).limit(pageSize);
+        var snap = await q.get();
+
+        if (snap.empty || snap.size < pageSize) exhausted = true;
+        if (snap.docs.length > 0) lastDoc = snap.docs[snap.docs.length - 1];
+
+        if (loadBtn) loadBtn.remove();
+
+        snap.forEach(function (d) {
+          var s = d.data();
+          var status = s.status || "pending-review";
+          var u = userCache[s.userId] || {};
+          var tbody = container.querySelector("tbody");
+          if (!tbody) {
+            container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+              '<th>Submitted By</th><th>Project</th><th>Work Type</th><th>Hours</th><th>Link</th><th>Notes</th><th>Submitted</th><th>Status</th><th>Action</th>' +
+              '</tr></thead><tbody></tbody></table></div>';
+            tbody = container.querySelector("tbody");
+          }
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td>' + esc(u.name || s.userId || "-") + '</td>' +
+            '<td>' + esc(projectName(s.projectId)) + '</td>' +
+            '<td>' + esc(s.workType || "-") + '</td>' +
+            '<td>' + esc(String(s.hours || "-")) + '</td>' +
+            '<td><a href="' + esc(s.driveLink || "#") + '" target="_blank" rel="noopener">View</a></td>' +
+            '<td>' + esc((s.notes || "").slice(0, 40)) + '</td>' +
+            '<td>' + fmtDate(s.submittedAt) + '</td>' +
+            '<td>' + statusBadge(status) + '</td>' +
+            '<td><button class="btn btn-ghost btn-sm btn-success" data-sub="' + d.id + '" data-act="approved">Approve</button> ' +
+            '<button class="btn btn-ghost btn-sm btn-danger" data-sub="' + d.id + '" data-act="rejected">Reject</button></td>';
+          tbody.appendChild(tr);
+
+          tr.querySelectorAll("[data-sub]").forEach(function (btn) {
+            btn.addEventListener("click", function () { setSubmissionStatus(btn.dataset.sub, btn.dataset.act); });
+          });
+        });
+
+        if (!exhausted) {
+          var btn = document.createElement("button");
+          btn.className = "btn btn-outline";
+          btn.setAttribute("data-load-more", "");
+          btn.textContent = "Load More";
+          btn.style.cssText = "width:100%; margin-top:16px;";
+          btn.addEventListener("click", loadMoreSubmissions);
+          container.appendChild(btn);
+        }
+      } catch (err) {
+        container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
+      }
+      loading = false;
     }
 
-    unsubSubmissions = db.collection("submissions").orderBy("submittedAt", "desc").onSnapshot(function(snap) {
-      if (filterSelect) {
-        filterSelect.onchange = function() { renderSubmissions(snap); };
-      }
-      renderSubmissions(snap);
-    }, function(err) {
-      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
-    });
+    await loadMoreSubmissions();
   } catch (err) {
     container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
   }
@@ -1006,127 +1280,95 @@ async function loadAdminUsers() {
     unsubAdminUsers();
     unsubAdminUsers = null;
   }
-  
+
+  // Add CSV download button
+  var existingBtn = container.parentElement.querySelector("[data-download-users-csv]");
+  if (!existingBtn) {
+    var csvBtn = document.createElement("button");
+    csvBtn.className = "btn btn-outline btn-sm";
+    csvBtn.setAttribute("data-download-users-csv", "");
+    csvBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Download CSV';
+    csvBtn.style.cssText = "float:right; margin-bottom:12px;";
+    csvBtn.addEventListener("click", function () { downloadUsersCSV(); });
+    container.parentElement.insertBefore(csvBtn, container);
+  }
+
   container.innerHTML = "<p>Loading...</p>";
 
   var searchInput = document.querySelector("[data-user-search]");
   var filterSelect = document.querySelector("[data-user-filter]");
 
-  function renderUsers() {
-    var search = (searchInput ? searchInput.value : "").trim().toLowerCase();
-    var roleFilter = filterSelect ? filterSelect.value : "all";
-    var rows = [];
-
-    // Sort by createdAt descending
-    var userList = Object.keys(userCache).map(k => ({id: k, ...userCache[k]}));
-    userList.sort(function(a, b) {
-      var ta = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
-      var tb = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
-      return tb - ta;
-    });
-
-    userList.forEach(function (u) {
-      if (roleFilter !== "all" && u.role !== roleFilter) return;
-      if (search) {
-        var hay = ((u.name || "") + " " + (u.email || "")).toLowerCase();
-        if (hay.indexOf(search) === -1) return;
+  // Paginated loader for users
+  var loader = new PaginatedLoader(
+    db.collection("users").orderBy("createdAt", "desc"),
+    15,
+    function (item, cont) {
+      var u = item.data;
+      userCache[item.id] = u; // also populate cache
+      var tbody = cont.querySelector("tbody");
+      if (!tbody) {
+        cont.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+          '<th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Company</th><th>Registered</th><th>Action</th>' +
+          '</tr></thead><tbody></tbody></table></div>';
+        tbody = cont.querySelector("tbody");
       }
-      rows.push(
-        '<tr>' +
-        '<td><a href="#" class="admin-user-link" data-user-card="' + u.id + '" style="color:var(--blue); font-weight:500;">' + esc(u.name || "Unknown") + '</a></td>' +
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td><a href="#" class="admin-user-link" data-user-card="' + item.id + '" style="color:var(--blue); font-weight:500;">' + esc(u.name || "Unknown") + '</a></td>' +
         '<td>' + esc(u.email || "-") + '</td>' +
         '<td>' + esc(u.phone || "-") + '</td>' +
         '<td>' + roleBadge(u.role) + '</td>' +
         '<td>' + esc(u.companyName || "-") + '</td>' +
         '<td>' + fmtDate(u.createdAt) + '</td>' +
-        '<td><button class="btn btn-ghost btn-sm" data-toggle-role="' + u.id + '" data-current="' + esc(u.role || "") + '">Change Role</button></td></tr>'
-      );
-    });
+        '<td><button class="btn btn-ghost btn-sm" data-toggle-role="' + item.id + '" data-current="' + esc(u.role || "") + '">Change Role</button></td>';
+      tbody.appendChild(tr);
+    },
+    container
+  );
 
-    if (!rows.length) { container.innerHTML = "<p>No matching registrations.</p>"; return; }
-    container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
-      '<th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Company</th><th>Registered</th><th>Action</th>' +
-      '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
+  await loader.loadMore();
 
-    container.querySelectorAll("[data-toggle-role]").forEach(function (btn) {
-      btn.addEventListener("click", async function () {
-        var uid = btn.dataset.toggleRole;
-        var current = btn.dataset.current;
-
-        // Non-super-admins cannot modify admin profiles
-        if (current === "admin" && !window._isSuperAdmin) {
-          uiAlert("Only the Super Admin can change an admin's role.");
-          return;
+  // Event delegation for role changes and user cards
+  container.addEventListener("click", async function (e) {
+    var roleBtn = e.target.closest("[data-toggle-role]");
+    if (roleBtn) {
+      var uid = roleBtn.dataset.toggleRole;
+      var current = roleBtn.dataset.current;
+      if (current === "admin" && !window._isSuperAdmin) {
+        uiAlert("Only the Super Admin can change an admin's role.");
+        return;
+      }
+      var options = ["freelancer", "vendor", "company"];
+      if (window._isSuperAdmin) options.push("admin");
+      var optionsStr = options.join(", ");
+      var newRole = await uiPrompt("Set role (" + optionsStr + "):", current);
+      if (!newRole || newRole === current) return;
+      if (options.indexOf(newRole) === -1) {
+        uiAlert("Invalid role. Choose from: " + optionsStr);
+        return;
+      }
+      try {
+        var updateData = { role: newRole };
+        if (newRole === "admin") {
+          updateData.adminGrantedBy = getAuth().currentUser.email;
+          updateData.adminGrantedAt = firebase.firestore.FieldValue.serverTimestamp();
+        } else if (current === "admin") {
+          updateData.adminRevokedBy = getAuth().currentUser.email;
+          updateData.adminRevokedAt = firebase.firestore.FieldValue.serverTimestamp();
         }
+        await db.collection("users").doc(uid).update(updateData);
+        userCache[uid] = Object.assign(userCache[uid] || {}, updateData);
+        uiAlert("Role updated to " + newRole);
+      } catch (err) { uiAlert("Error: " + err.message); }
+      return;
+    }
 
-        // Build role options — only super admin sees the "admin" option
-        var options = ["freelancer", "vendor", "company"];
-        if (window._isSuperAdmin) options.push("admin");
-        var optionsStr = options.join(", ");
-
-        var newRole = await uiPrompt("Set role (" + optionsStr + "):", current);
-        if (!newRole || newRole === current) return;
-
-        // Validate the chosen role
-        if (options.indexOf(newRole) === -1) {
-          uiAlert("Invalid role. Choose from: " + optionsStr);
-          return;
-        }
-
-        try {
-          var updateData = { role: newRole };
-          // Audit trail when granting/revoking admin
-          if (newRole === "admin") {
-            updateData.adminGrantedBy = getAuth().currentUser.email;
-            updateData.adminGrantedAt = firebase.firestore.FieldValue.serverTimestamp();
-          } else if (current === "admin") {
-            updateData.adminRevokedBy = getAuth().currentUser.email;
-            updateData.adminRevokedAt = firebase.firestore.FieldValue.serverTimestamp();
-          }
-          await db.collection("users").doc(uid).update(updateData);
-        } catch (err) { uiAlert("Error: " + err.message); }
-      });
-    });
-
-    container.querySelectorAll("[data-user-card]").forEach(function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        openUserCard(btn.dataset.userCard);
-      });
-    });
-  }
-
-  // Use simple events directly since we replace the elements to clear old listeners if needed,
-  // or just attach if not attached yet. For simplicity, we just attach once in initAdmin or we can clone.
-  if (searchInput) {
-    var newSearch = searchInput.cloneNode(true);
-    searchInput.parentNode.replaceChild(newSearch, searchInput);
-    searchInput = newSearch;
-    newSearch.addEventListener("input", renderUsers);
-  }
-  if (filterSelect) {
-    var newSelect = filterSelect.cloneNode(true);
-    filterSelect.parentNode.replaceChild(newSelect, filterSelect);
-    filterSelect = newSelect;
-    newSelect.addEventListener("change", renderUsers);
-  }
-
-  try {
-    unsubAdminUsers = db.collection("users").orderBy("createdAt", "desc").onSnapshot(function (snap) {
-      snap.docChanges().forEach(function(change) {
-        if (change.type === "removed") {
-          delete userCache[change.doc.id];
-        } else {
-          userCache[change.doc.id] = change.doc.data();
-        }
-      });
-      renderUsers();
-    }, function(err) {
-      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
-    });
-  } catch (err) {
-    container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
-  }
+    var cardBtn = e.target.closest("[data-user-card]");
+    if (cardBtn) {
+      e.preventDefault();
+      openUserCard(cardBtn.dataset.userCard);
+    }
+  });
 }
 
 function openUserCard(uid) {
@@ -1173,6 +1415,18 @@ async function loadAdminContacts() {
     unsubAdminContacts();
     unsubAdminContacts = null;
   }
+
+  // CSV download button
+  if (!container.parentElement.querySelector("[data-download-contacts-csv]")) {
+    var csvBtn = document.createElement("button");
+    csvBtn.className = "btn btn-outline btn-sm";
+    csvBtn.setAttribute("data-download-contacts-csv", "");
+    csvBtn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Download CSV';
+    csvBtn.style.cssText = "float:right; margin-bottom:12px;";
+    csvBtn.addEventListener("click", function () { downloadContactsCSV(); });
+    container.parentElement.insertBefore(csvBtn, container);
+  }
+
   container.innerHTML = "<p>Loading...</p>";
 
   try {
@@ -1184,15 +1438,44 @@ async function loadAdminContacts() {
         rows.push(
           '<tr><td>' + esc(c.name || "-") + '</td><td>' + esc(c.email || "-") + '</td>' +
           '<td>' + esc(c.phone || "-") + '</td><td>' + esc(c.subject || c.type || "-") + '</td>' +
-          '<td>' + esc((c.message || "").slice(0, 80)) + '</td><td>' + fmtDate(c.createdAt) + '</td>' +
+          '<td>' + esc((c.message || "").slice(0, 60)) + (c.message && c.message.length > 60 ? '...' : '') + '</td><td>' + fmtDate(c.createdAt) + '</td>' +
           '<td>' + statusBadge(c.status || "new") + '</td>' +
-          '<td><button class="btn btn-ghost btn-sm" data-contact-read="' + d.id + '">Mark Read</button> ' +
+          '<td><button class="btn btn-ghost btn-sm" data-contact-view="' + d.id + '">View</button> ' +
+          '<button class="btn btn-ghost btn-sm" data-contact-read="' + d.id + '">Read</button> ' +
           '<button class="btn btn-ghost btn-sm btn-success" data-contact-replied="' + d.id + '">Replied</button></td></tr>'
         );
       });
       container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
         '<th>Name</th><th>Email</th><th>Phone</th><th>Subject</th><th>Message</th><th>Submitted</th><th>Status</th><th>Action</th>' +
         '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
+
+      // View button — opens full message in modal
+      container.querySelectorAll("[data-contact-view]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var contactId = btn.dataset.contactView;
+          var contactDoc = null;
+          snap.forEach(function (d) { if (d.id === contactId) contactDoc = d.data(); });
+          if (!contactDoc) return;
+
+          var overlay = document.createElement("div");
+          overlay.className = "full-screen-modal-overlay";
+          overlay.innerHTML = '<div class="full-screen-modal-content" style="max-width:600px;">' +
+            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">' +
+            '<h2 style="margin:0;">Contact Message</h2>' +
+            '<button class="btn btn-ghost" onclick="this.closest(\'.full-screen-modal-overlay\').remove()" style="font-size:20px;">&times;</button></div>' +
+            '<p><strong>Name:</strong> ' + esc(contactDoc.name || "-") + '</p>' +
+            '<p><strong>Email:</strong> ' + esc(contactDoc.email || "-") + '</p>' +
+            '<p><strong>Phone:</strong> ' + esc(contactDoc.phone || "-") + '</p>' +
+            '<p><strong>Subject:</strong> ' + esc(contactDoc.subject || contactDoc.type || "-") + '</p>' +
+            '<p><strong>Submitted:</strong> ' + fmtDate(contactDoc.createdAt) + '</p>' +
+            '<p><strong>Status:</strong> ' + statusBadge(contactDoc.status || "new") + '</p>' +
+            '<div style="margin-top:16px; padding:16px; background:var(--ink-3); border-radius:8px; border:1px solid var(--line); white-space:pre-wrap; line-height:1.6;">' +
+            esc(contactDoc.message || "No message") + '</div>' +
+            '</div>';
+          document.body.appendChild(overlay);
+          overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
+        });
+      });
 
       container.querySelectorAll("[data-contact-read]").forEach(function (btn) {
         btn.addEventListener("click", function () { setContactStatus(btn.dataset.contactRead, "read"); });
@@ -1225,22 +1508,42 @@ async function loadAdminMessages() {
   var container = document.querySelector("[data-admin-messages]");
   if (!container) return;
 
-  function renderList() {
+  // Add search box
+  container.innerHTML = '<div class="admin-toolbar" style="margin-bottom:16px;">' +
+    '<input class="admin-search" type="search" placeholder="Search users by name or email to start a chat..." data-msg-search style="flex:1;">' +
+    '</div><div data-msg-list><p>Loading...</p></div>';
+  var listContainer = container.querySelector("[data-msg-list]");
+  var searchInput = container.querySelector("[data-msg-search]");
+
+  function renderList(filter) {
+    var searchTerm = (filter || "").toLowerCase().trim();
     var rowData = [];
     for (var uid in _adminMessagesCache.users) {
       var u = _adminMessagesCache.users[uid];
-      if (u.role === "admin") continue; // Optionally skip admins? Or show everyone.
+      if (u.role === "admin") continue;
       var t = _adminMessagesCache.threads[uid] || {};
+      var hasMessages = !!t.lastMessage;
+
+      // Filter: if searching, show matching users; if not searching, only show users with messages
+      if (searchTerm) {
+        var hay = ((u.name || "") + " " + (u.email || "")).toLowerCase();
+        if (hay.indexOf(searchTerm) === -1) continue;
+      } else {
+        if (!hasMessages) continue; // Only show users who have messaged
+      }
+
       rowData.push({
         id: uid,
         name: u.name || u.email || "Unknown",
+        email: u.email || "",
         lastMessage: t.lastMessage || "No messages yet",
         lastAt: t.lastAt || u.createdAt || null,
-        unreadAdmin: t.unreadAdmin || 0
+        unreadAdmin: t.unreadAdmin || 0,
+        hasMessages: hasMessages
       });
     }
 
-    // Sort by unread first, then by lastAt descending
+    // Sort: unread first, then by lastAt descending
     rowData.sort(function(a, b) {
       if (a.unreadAdmin > 0 && b.unreadAdmin === 0) return -1;
       if (b.unreadAdmin > 0 && a.unreadAdmin === 0) return 1;
@@ -1249,46 +1552,56 @@ async function loadAdminMessages() {
       return tb - ta;
     });
 
-    if (rowData.length === 0) { container.innerHTML = "<p>No users available to message.</p>"; return; }
+    if (rowData.length === 0) {
+      listContainer.innerHTML = searchTerm
+        ? '<p>No users matching "' + esc(searchTerm) + '"</p>'
+        : '<p>No messages yet. Search for a user above to start a conversation.</p>';
+      return;
+    }
 
     var rows = [];
     rowData.forEach(function (m) {
       var badge = m.unreadAdmin > 0 ? ' <span class="badge" style="background:#ff4757;color:#fff;border-radius:12px;padding:2px 6px;font-size:0.75rem;margin-left:8px;">' + m.unreadAdmin + ' new</span>' : '';
+      var statusDot = m.hasMessages ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px;"></span>' : '';
       rows.push(
-        '<tr><td>' + esc(m.name) + badge + '</td><td>' + esc(m.lastMessage.slice(0, 80)) + '</td>' +
+        '<tr><td>' + statusDot + esc(m.name) + '<br><span style="font-size:11px;color:var(--muted);">' + esc(m.email) + '</span>' + badge + '</td><td>' + esc(m.lastMessage.slice(0, 60)) + '</td>' +
         '<td>' + (m.lastAt ? fmtDate(m.lastAt) : '-') + '</td>' +
         '<td><button class="btn btn-ghost btn-sm" data-open-thread="' + m.id + '">Chat</button></td></tr>'
       );
     });
 
-    container.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+    listContainer.innerHTML = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
       '<th>User</th><th>Last Message</th><th>Updated</th><th>Action</th>' +
       '</tr></thead><tbody>' + rows.join("") + '</tbody></table></div>';
 
-    container.querySelectorAll("[data-open-thread]").forEach(function (btn) {
+    listContainer.querySelectorAll("[data-open-thread]").forEach(function (btn) {
       btn.addEventListener("click", function () { openThread(btn.dataset.openThread); });
     });
   }
 
   if (unsubAdminMessages) { unsubAdminMessages(); unsubAdminMessages = null; }
   if (unsubAdminMessagesUsers) { unsubAdminMessagesUsers(); unsubAdminMessagesUsers = null; }
-  container.innerHTML = "<p>Loading...</p>";
+
+  // Search input listener
+  if (searchInput) {
+    searchInput.addEventListener("input", function () { renderList(searchInput.value); });
+  }
 
   try {
-    unsubAdminMessagesUsers = db.collection("users").onSnapshot(function(snap) {
+    unsubAdminMessagesUsers = db.collection("users").limit(200).onSnapshot(function(snap) {
       snap.forEach(function(d) {
         _adminMessagesCache.users[d.id] = Object.assign({ id: d.id }, d.data());
       });
-      renderList();
+      renderList(searchInput ? searchInput.value : "");
     }, function(err) {
-      container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
+      listContainer.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
 
     unsubAdminMessages = db.collection("messages").onSnapshot(function(snap) {
       snap.forEach(function(d) {
         _adminMessagesCache.threads[d.id] = d.data();
       });
-      renderList();
+      renderList(searchInput ? searchInput.value : "");
     }, function(err) {
       container.innerHTML = "<p>Error: " + esc(err.message) + "</p>";
     });
@@ -1387,7 +1700,7 @@ async function loadAdminLogs() {
   var search = ((document.querySelector("[data-log-search]") || {}).value || "").trim().toLowerCase();
 
   try {
-    var snap = await db.collection("signinLogs").orderBy("createdAt", "desc").limit(200).get();
+    var snap = await db.collection("signinLogs").orderBy("createdAt", "desc").limit(50).get();
     if (snap.empty) { container.innerHTML = "<p>No sign-in activity recorded yet.</p>"; return; }
     var rows = [];
     snap.forEach(function (d) {
@@ -1679,7 +1992,7 @@ async function loadLanguages() {
   gridEl.innerHTML = '<p class="section-copy">Loading language data...</p>';
 
   try {
-    var snap = await db.collection("users").get();
+    var snap = await db.collection("users").limit(200).get();
     var users = [];
     snap.forEach(function(doc) {
       var d = doc.data();
@@ -2002,4 +2315,537 @@ if (typeof uiConfirm === "undefined") {
   window.uiConfirm = function (msg) {
     return Promise.resolve(confirm(msg));
   };
+}
+
+// ---------------------------------------------------------------------------
+// CSV Download — exports user data, registrations, or any collection
+// ---------------------------------------------------------------------------
+function downloadUsersCSV() {
+  ensureUsers().then(function () {
+    var headers = ["Name", "Email", "Phone", "Role", "Company", "Registered", "CV URL"];
+    var rows = [headers.join(",")];
+    var count = 0;
+
+    Object.keys(userCache).forEach(function (uid) {
+      var u = userCache[uid];
+      if (!isInDateRange(u.createdAt)) return;
+      rows.push([
+        csvEscape(u.name || ""),
+        csvEscape(u.email || ""),
+        csvEscape(u.phone || ""),
+        csvEscape(u.role || ""),
+        csvEscape(u.companyName || ""),
+        csvEscape(fmtDate(u.createdAt)),
+        csvEscape(u.cvUrl || ""),
+      ].join(","));
+      count++;
+    });
+
+    if (count === 0) { uiAlert("No users found for the selected filters."); return; }
+    downloadCSV(rows.join("\n"), "yugm_users_" + new Date().toISOString().slice(0, 10) + ".csv");
+    uiAlert("Downloaded " + count + " users as CSV.");
+  });
+}
+
+function downloadRegistrationsCSV() {
+  ensureUsers().then(function () {
+    var projectId = getSelectedProjectId();
+    var query = db.collection("participations").limit(10000);
+    if (projectId) query = query.where("projectId", "==", projectId);
+    query.get().then(function (snap) {
+      var headers = ["User ID", "Name", "Email", "Phone", "Project", "Status", "Step", "Applied At"];
+      var rows = [headers.join(",")];
+      var count = 0;
+
+      snap.forEach(function (doc) {
+        var p = doc.data();
+        if (!isInDateRange(p.appliedAt)) return;
+        var u = userCache[p.userId] || {};
+        rows.push([
+          csvEscape(p.userId || ""),
+          csvEscape(u.name || ""),
+          csvEscape(u.email || ""),
+          csvEscape(u.phone || ""),
+          csvEscape(projectName(p.projectId)),
+          csvEscape(p.status || ""),
+          csvEscape(String(p.step || "")),
+          csvEscape(fmtDate(p.appliedAt)),
+        ].join(","));
+        count++;
+      });
+
+      if (count === 0) { uiAlert("No participation records found for the selected filters."); return; }
+      downloadCSV(rows.join("\n"), "yugm_participation_" + new Date().toISOString().slice(0, 10) + ".csv");
+      uiAlert("Downloaded " + count + " participation records as CSV.");
+    });
+  });
+}
+
+function downloadSubmissionsCSV() {
+  ensureUsers().then(function () {
+    var projectId = getSelectedProjectId();
+    var query = db.collection("submissions").limit(10000);
+    if (projectId) query = query.where("projectId", "==", projectId);
+    query.get().then(function (snap) {
+      var headers = ["User ID", "Name", "Project", "Work Type", "Hours", "Status", "Drive Link", "Submitted At"];
+      var rows = [headers.join(",")];
+      var count = 0;
+
+      snap.forEach(function (doc) {
+        var s = doc.data();
+        if (!isInDateRange(s.submittedAt)) return;
+        var u = userCache[s.userId] || {};
+        rows.push([
+          csvEscape(s.userId || ""),
+          csvEscape(u.name || ""),
+          csvEscape(projectName(s.projectId)),
+          csvEscape(s.workType || ""),
+          csvEscape(String(s.hours || "")),
+          csvEscape(s.status || ""),
+          csvEscape(s.driveLink || ""),
+          csvEscape(fmtDate(s.submittedAt)),
+        ].join(","));
+        count++;
+      });
+
+      if (count === 0) { uiAlert("No submissions found for the selected filters."); return; }
+      downloadCSV(rows.join("\n"), "yugm_submissions_" + new Date().toISOString().slice(0, 10) + ".csv");
+      uiAlert("Downloaded " + count + " submissions as CSV.");
+    });
+  });
+}
+
+function csvEscape(val) {
+  var str = String(val);
+  if (str.indexOf(",") !== -1 || str.indexOf('"') !== -1 || str.indexOf("\n") !== -1) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+function downloadCSV(csvContent, filename) {
+  var blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// Admin Files — shows all uploaded files across the platform
+// ---------------------------------------------------------------------------
+async function loadAdminFiles() {
+  var container = document.querySelector("[data-admin-files]");
+  if (!container) return;
+  container.innerHTML = '<p class="section-copy">Loading all files...</p>';
+
+  try {
+    // Get all users, participations, and submissions
+    var results = await Promise.all([
+      db.collection("users").limit(200).get(),
+      db.collection("participations").limit(200).get(),
+      db.collection("submissions").limit(200).get(),
+    ]);
+
+    var allUsers = {};
+    results[0].forEach(function (d) { allUsers[d.id] = d.data(); });
+
+    var files = [];
+
+    // CVs from user profiles
+    Object.keys(allUsers).forEach(function (uid) {
+      var u = allUsers[uid];
+      if (u.cvUrl) {
+        files.push({ type: "CV", name: u.cvName || "CV", user: u.name || u.email || uid, url: u.cvUrl, date: u.updatedAt });
+      }
+    });
+
+    // Invoices and NDAs from participations
+    results[1].forEach(function (d) {
+      var p = d.data();
+      var userName = allUsers[p.userId]?.name || allUsers[p.userId]?.email || p.userId;
+      if (p.invoiceUrl) {
+        files.push({ type: "Invoice", name: "Invoice", user: userName, url: p.invoiceUrl, date: p.invoiceSubmittedAt });
+      }
+      if (p.ndaUrl) {
+        files.push({ type: "NDA", name: "Signed NDA", user: userName, url: p.ndaUrl, date: p.ndaSubmittedAt });
+      }
+    });
+
+    // Submission files
+    results[2].forEach(function (d) {
+      var s = d.data();
+      var userName = allUsers[s.userId]?.name || allUsers[s.userId]?.email || s.userId;
+      if (s.driveLink) {
+        files.push({ type: "Submission", name: s.workType || "Work", user: userName, url: s.driveLink, date: s.submittedAt });
+      }
+    });
+
+    if (files.length === 0) {
+      container.innerHTML = '<p class="section-copy">No files uploaded yet.</p>';
+      return;
+    }
+
+    var html = '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+      '<th>Type</th><th>User</th><th>File</th><th>Uploaded</th><th>Action</th>' +
+      '</tr></thead><tbody>';
+
+    files.forEach(function (f) {
+      var typeBadge = {
+        "CV": "background:rgba(59,130,246,0.15);color:#3B82F6;",
+        "Invoice": "background:rgba(16,185,129,0.15);color:#10B981;",
+        "NDA": "background:rgba(245,158,11,0.15);color:#F59E0B;",
+        "Submission": "background:rgba(139,92,246,0.15);color:#8B5CF6;",
+      }[f.type] || "background:rgba(255,255,255,0.1);color:#fff;";
+
+      html += '<tr>' +
+        '<td><span style="padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; ' + typeBadge + '">' + esc(f.type) + '</span></td>' +
+        '<td>' + esc(f.user) + '</td>' +
+        '<td>' + esc(f.name) + '</td>' +
+        '<td>' + fmtDate(f.date) + '</td>' +
+        '<td><a href="' + esc(f.url) + '" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">View</a></td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+  } catch (err) {
+    container.innerHTML = '<p class="section-copy" style="color:#ff8585;">Error: ' + esc(err.message) + '</p>';
+  }
+}
+
+// Contacts CSV download
+function downloadContactsCSV() {
+  db.collection("contacts").limit(500).get().then(function (snap) {
+    var headers = ["Name", "Email", "Phone", "Subject", "Message", "Status", "Submitted"];
+    var rows = [headers.join(",")];
+    snap.forEach(function (d) {
+      var c = d.data();
+      rows.push([
+        csvEscape(c.name || ""),
+        csvEscape(c.email || ""),
+        csvEscape(c.phone || ""),
+        csvEscape(c.subject || c.type || ""),
+        csvEscape(c.message || ""),
+        csvEscape(c.status || "new"),
+        csvEscape(fmtDate(c.createdAt)),
+      ].join(","));
+    });
+    downloadCSV(rows.join("\n"), "yugm_contacts_" + new Date().toISOString().slice(0, 10) + ".csv");
+    uiAlert("Downloaded " + (rows.length - 1) + " contacts as CSV.");
+  });
+}
+
+// Sign-in Logs CSV
+function downloadLogsCSV() {
+  db.collection("signinLogs").orderBy("createdAt", "desc").limit(10000).get().then(function (snap) {
+    var headers = ["Name", "Email", "Role", "Method", "IP", "User Agent", "Time"];
+    var rows = [headers.join(",")];
+    snap.forEach(function (d) {
+      var l = d.data();
+      rows.push([
+        csvEscape(l.name || ""),
+        csvEscape(l.email || ""),
+        csvEscape(l.role || ""),
+        csvEscape(l.method || ""),
+        csvEscape(l.ip || ""),
+        csvEscape((l.userAgent || "").slice(0, 80)),
+        csvEscape(fmtDate(l.createdAt)),
+      ].join(","));
+    });
+    downloadCSV(rows.join("\n"), "yugm_signin_logs_" + new Date().toISOString().slice(0, 10) + ".csv");
+    uiAlert("Downloaded " + (rows.length - 1) + " sign-in logs as CSV.");
+  });
+}
+
+// Announcements CSV
+function downloadAnnouncementsCSV() {
+  db.collection("notifications").orderBy("createdAt", "desc").limit(10000).get().then(function (snap) {
+    var headers = ["Title", "Body", "Link", "Audience", "Sent At"];
+    var rows = [headers.join(",")];
+    snap.forEach(function (d) {
+      var n = d.data();
+      rows.push([
+        csvEscape(n.title || ""),
+        csvEscape(n.body || ""),
+        csvEscape(n.link || ""),
+        csvEscape(n.audience || "all"),
+        csvEscape(fmtDate(n.createdAt)),
+      ].join(","));
+    });
+    downloadCSV(rows.join("\n"), "yugm_announcements_" + new Date().toISOString().slice(0, 10) + ".csv");
+    uiAlert("Downloaded " + (rows.length - 1) + " announcements as CSV.");
+  });
+}
+
+// Projects CSV
+function downloadProjectsCSV() {
+  db.collection("projects").limit(10000).get().then(function (snap) {
+    var headers = ["Name", "Modality", "Status", "Payout", "Languages", "Created"];
+    var rows = [headers.join(",")];
+    snap.forEach(function (d) {
+      var p = d.data();
+      rows.push([
+        csvEscape(p.name || ""),
+        csvEscape(p.modality || ""),
+        csvEscape(p.status || ""),
+        csvEscape(p.payout || ""),
+        csvEscape(Array.isArray(p.languages) ? p.languages.join("; ") : ""),
+        csvEscape(fmtDate(p.createdAt)),
+      ].join(","));
+    });
+    downloadCSV(rows.join("\n"), "yugm_projects_" + new Date().toISOString().slice(0, 10) + ".csv");
+    uiAlert("Downloaded " + (rows.length - 1) + " projects as CSV.");
+  });
+}
+
+// Languages CSV
+function downloadLanguagesCSV() {
+  ensureUsers().then(function () {
+    var langMap = {};
+    Object.keys(userCache).forEach(function (uid) {
+      var u = userCache[uid];
+      if (u.role === "admin") return;
+      var langs = u.languages || u.languageResources || [];
+      if (Array.isArray(langs)) {
+        langs.forEach(function (l) {
+          var lang = typeof l === "string" ? l : l.language;
+          var count = typeof l === "object" ? (l.count || 1) : 1;
+          if (lang) {
+            if (!langMap[lang]) langMap[lang] = { total: 0, users: 0 };
+            langMap[lang].total += count;
+            langMap[lang].users++;
+          }
+        });
+      }
+    });
+
+    var headers = ["Language", "Total Resources", "Contributors"];
+    var rows = [headers.join(",")];
+    Object.keys(langMap).sort().forEach(function (lang) {
+      rows.push([csvEscape(lang), langMap[lang].total, langMap[lang].users].join(","));
+    });
+    downloadCSV(rows.join("\n"), "yugm_languages_" + new Date().toISOString().slice(0, 10) + ".csv");
+    uiAlert("Downloaded " + (rows.length - 1) + " languages as CSV.");
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Export Data tab — populate project filter + show record counts
+// ---------------------------------------------------------------------------
+async function loadExportData() {
+  // Populate project filter dropdown
+  var projectSelect = document.getElementById("export-project-filter");
+  if (projectSelect) {
+    await ensureProjects();
+    Object.keys(projectCache).forEach(function (pid) {
+      var p = projectCache[pid];
+      var opt = document.createElement("option");
+      opt.value = pid;
+      opt.textContent = p.name || pid;
+      projectSelect.appendChild(opt);
+    });
+  }
+
+  // Show record counts
+  try {
+    await ensureUsers();
+    var usersCount = document.querySelector("[data-export-count-users]");
+    if (usersCount) usersCount.textContent = Object.keys(userCache).length + " records";
+
+    var partsCount = document.querySelector("[data-export-count-parts]");
+    if (partsCount) {
+      var partsSnap = await db.collection("participations").limit(10000).get();
+      partsCount.textContent = partsSnap.size + " records";
+    }
+
+    var subsCount = document.querySelector("[data-export-count-subs]");
+    if (subsCount) {
+      var subsSnap = await db.collection("submissions").limit(10000).get();
+      subsCount.textContent = subsSnap.size + " records";
+    }
+
+    var contactsCount = document.querySelector("[data-export-count-contacts]");
+    if (contactsCount) {
+      var contactsSnap = await db.collection("contacts").limit(10000).get();
+      contactsCount.textContent = contactsSnap.size + " records";
+    }
+
+    var logsCount = document.querySelector("[data-export-count-logs]");
+    if (logsCount) {
+      var logsSnap = await db.collection("signinLogs").limit(10000).get();
+      logsCount.textContent = logsSnap.size + " records";
+    }
+
+    var announceCount = document.querySelector("[data-export-count-announce]");
+    if (announceCount) {
+      var announceSnap = await db.collection("notifications").limit(10000).get();
+      announceCount.textContent = announceSnap.size + " records";
+    }
+
+    var projectsCount = document.querySelector("[data-export-count-projects]");
+    if (projectsCount) projectsCount.textContent = Object.keys(projectCache).length + " records";
+
+    var langsCount = document.querySelector("[data-export-count-langs]");
+    if (langsCount) {
+      var langSet = {};
+      Object.keys(userCache).forEach(function (uid) {
+        var u = userCache[uid];
+        var langs = u.languages || u.languageResources || [];
+        if (Array.isArray(langs)) {
+          langs.forEach(function (l) {
+            var lang = typeof l === "string" ? l : l.language;
+            if (lang) langSet[lang] = true;
+          });
+        }
+      });
+      langsCount.textContent = Object.keys(langSet).length + " languages";
+    }
+  } catch (err) {
+    console.error("[export] count error:", err);
+  }
+}
+
+// Date filter helper — returns true if timestamp is within the selected date range
+function isInDateRange(ts) {
+  if (!ts) return true;
+  var fromEl = document.getElementById("export-date-from");
+  var toEl = document.getElementById("export-date-to");
+  var fromVal = fromEl ? fromEl.value : "";
+  var toVal = toEl ? toEl.value : "";
+  if (!fromVal && !toVal) return true;
+
+  var date;
+  if (ts && typeof ts.toDate === "function") {
+    date = ts.toDate();
+  } else if (ts && typeof ts.toMillis === "function") {
+    date = new Date(ts.toMillis());
+  } else {
+    date = new Date(ts);
+  }
+  if (isNaN(date.getTime())) return true;
+
+  if (fromVal && date < new Date(fromVal)) return false;
+  if (toVal && date > new Date(toVal + "T23:59:59")) return false;
+  return true;
+}
+
+// Project filter helper
+function getSelectedProjectId() {
+  var el = document.getElementById("export-project-filter");
+  return el ? el.value : "";
+}
+
+// ---------------------------------------------------------------------------
+// Validation CSV Upload — admin uploads scores/feedback per contributor
+// CSV format: email,name,score,feedback
+// ---------------------------------------------------------------------------
+function openValidationUpload(projectId) {
+  var overlay = document.createElement("div");
+  overlay.className = "full-screen-modal-overlay";
+  overlay.innerHTML = '<div class="full-screen-modal-content" style="max-width:600px;">' +
+    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">' +
+    '<h2 style="margin:0;">Upload Validation CSV</h2>' +
+    '<button class="btn btn-ghost" id="close-validation-modal" style="font-size:20px;">&times;</button></div>' +
+    '<p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Upload a CSV file with validation scores for contributors. ' +
+    'Format: <code>email,name,score,feedback</code> — one row per contributor.</p>' +
+    '<div class="field"><label>Select CSV File</label>' +
+    '<input type="file" id="validation-csv-file" accept=".csv,.txt"></div>' +
+    '<div id="validation-preview" style="margin-top:16px;"></div>' +
+    '<div style="margin-top:16px; display:flex; gap:10px;">' +
+    '<button class="btn btn-primary" id="btn-upload-validation" disabled>Upload Validation Data</button>' +
+    '<button class="btn btn-ghost" id="btn-cancel-validation">Cancel</button></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  overlay.querySelector("#close-validation-modal").addEventListener("click", function () { overlay.remove(); });
+  overlay.querySelector("#btn-cancel-validation").addEventListener("click", function () { overlay.remove(); });
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
+
+  var fileInput = overlay.querySelector("#validation-csv-file");
+  var preview = overlay.querySelector("#validation-preview");
+  var uploadBtn = overlay.querySelector("#btn-upload-validation");
+  var parsedData = [];
+
+  fileInput.addEventListener("change", function () {
+    var file = fileInput.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var lines = e.target.result.split("\n").filter(function (l) { return l.trim(); });
+      if (lines.length < 2) { preview.innerHTML = '<p style="color:#ff8585;">CSV must have a header row and at least one data row.</p>'; return; }
+
+      // Parse header
+      var header = lines[0].split(",").map(function (h) { return h.trim().toLowerCase(); });
+      var emailIdx = header.indexOf("email");
+      var nameIdx = header.indexOf("name");
+      var scoreIdx = header.indexOf("score");
+      var feedbackIdx = header.indexOf("feedback");
+
+      if (emailIdx === -1) { preview.innerHTML = '<p style="color:#ff8585;">CSV must have an "email" column.</p>'; return; }
+
+      parsedData = [];
+      for (var i = 1; i < lines.length; i++) {
+        var cols = lines[i].split(",").map(function (c) { return c.trim(); });
+        if (cols.length < 2) continue;
+        parsedData.push({
+          email: cols[emailIdx] || "",
+          name: nameIdx >= 0 ? cols[nameIdx] || "" : "",
+          score: scoreIdx >= 0 ? parseInt(cols[scoreIdx]) || 0 : 0,
+          feedback: feedbackIdx >= 0 ? cols.slice(feedbackIdx).join(",").trim() : "",
+        });
+      }
+
+      if (parsedData.length === 0) { preview.innerHTML = '<p style="color:#ff8585;">No valid rows found.</p>'; return; }
+
+      var html = '<p style="font-size:13px; margin-bottom:8px;">Preview (' + parsedData.length + ' contributors):</p>';
+      html += '<div style="max-height:200px; overflow-y:auto; background:var(--ink-3); border:1px solid var(--line); border-radius:8px; padding:12px;">';
+      parsedData.slice(0, 10).forEach(function (row) {
+        html += '<div style="display:flex; gap:12px; padding:4px 0; font-size:12px; border-bottom:1px solid var(--line);">' +
+          '<span style="flex:1;">' + esc(row.email) + '</span>' +
+          '<span style="flex:1;">' + esc(row.name) + '</span>' +
+          '<span style="width:50px; text-align:right; font-weight:600;">' + row.score + '</span>' +
+          '<span style="flex:2; color:var(--muted);">' + esc(row.feedback.slice(0, 40)) + '</span></div>';
+      });
+      if (parsedData.length > 10) html += '<p style="font-size:11px; color:var(--muted); margin-top:8px;">...and ' + (parsedData.length - 10) + ' more</p>';
+      html += '</div>';
+      preview.innerHTML = html;
+      uploadBtn.disabled = false;
+    };
+    reader.readAsText(file);
+  });
+
+  uploadBtn.addEventListener("click", async function () {
+    if (parsedData.length === 0) return;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "Uploading...";
+
+    try {
+      var batch = db.batch();
+      parsedData.forEach(function (row) {
+        var ref = db.collection("validations").doc(projectId + "_" + row.email.replace(/[^a-zA-Z0-9]/g, "_"));
+        batch.set(ref, {
+          projectId: projectId,
+          email: row.email,
+          name: row.name,
+          score: row.score,
+          feedback: row.feedback,
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
+      await batch.commit();
+      uiAlert("Validation data uploaded for " + parsedData.length + " contributors.");
+      overlay.remove();
+    } catch (err) {
+      uiAlert("Upload error: " + err.message);
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = "Upload Validation Data";
+    }
+  });
 }

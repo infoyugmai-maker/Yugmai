@@ -1,6 +1,6 @@
 /**
- * About Page 3D — YUGM AI
- * Subtle floating particle field behind the About hero section.
+ * Jobs Page 3D — YUGM AI
+ * Subtle floating particles behind the jobs listing section.
  */
 import { colors } from '../core/colorTokens.js';
 import { getDeviceTier } from '../core/deviceTier.js';
@@ -9,8 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tier = getDeviceTier();
   if (tier === 'off') return;
 
-  // Create a canvas overlay for the about hero
-  const hero = document.querySelector('.about-hero');
+  const hero = document.querySelector('.jobs-hero') || document.querySelector('.page-main');
   if (!hero) return;
 
   const canvas = document.createElement('canvas');
@@ -27,21 +26,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initParticles() {
-    const count = tier === 'high' ? 60 : 30;
+    const count = tier === 'high' ? 40 : 20;
     particles = Array.from({ length: count }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
       vx: (Math.random() - 0.5) * 0.3,
       vy: (Math.random() - 0.5) * 0.3,
-      r: Math.random() * 2 + 0.5,
-      alpha: Math.random() * 0.4 + 0.1,
+      r: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.25 + 0.05,
     }));
   }
 
   function draw() {
     ctx.clearRect(0, 0, w, h);
-
-    // Draw particles
     for (const p of particles) {
       p.x += p.vx;
       p.y += p.vy;
@@ -55,24 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillStyle = `rgba(145, 107, 191, ${p.alpha})`;
       ctx.fill();
     }
-
-    // Draw connections between nearby particles
-    ctx.strokeStyle = 'rgba(145, 107, 191, 0.06)';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.stroke();
-        }
-      }
-    }
-
     requestAnimationFrame(draw);
   }
 

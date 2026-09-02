@@ -58,6 +58,52 @@ document.addEventListener("DOMContentLoaded", function () {
   if (typeof initHeaderAuthState === "function") {
     initHeaderAuthState();
   }
+
+  // Count-up animation for metrics
+  if (typeof initCountUp === "function") initCountUp();
+
+  // Spotlight cards
+  var cards = document.querySelectorAll(".card, .ops-card, .service-card, .process-card, .project-card");
+  cards.forEach(function (card) {
+    card.addEventListener("mousemove", function (e) {
+      var rect = card.getBoundingClientRect();
+      card.style.setProperty("--mouse-x", (e.clientX - rect.left) + "px");
+      card.style.setProperty("--mouse-y", (e.clientY - rect.top) + "px");
+    });
+  });
+
+  // "Read More" links on project cards
+  document.body.addEventListener("click", async function (e) {
+    var btn = e.target.closest("[data-read-more]");
+    if (!btn) return;
+    var originalText = btn.textContent;
+    btn.textContent = "Loading...";
+    var projectId = btn.dataset.readMore;
+    try {
+      if (!window._firestoreModule || !window._db) throw new Error("Firestore not initialized");
+      var fs = window._firestoreModule;
+      var db = window._db;
+
+      var pDoc = await fs.getDoc(fs.doc(db, "projects", projectId));
+      if (!pDoc.exists()) throw new Error("Not found");
+      var p = pDoc.data();
+
+      var overlay = document.createElement("div");
+      overlay.className = "full-screen-modal-overlay";
+      var content = document.createElement("div");
+      content.className = "full-screen-modal-content";
+      content.innerHTML = '<h2>' + escapeHtml(p.name || "Details") + '</h2>' +
+        '<div style="white-space:pre-wrap; margin-top:20px; line-height:1.6;">' + escapeHtml(p.description || "") + '</div>' +
+        '<div style="margin-top:30px; text-align:right;"><button class="btn btn-outline" onclick="this.closest(\'.full-screen-modal-overlay\').remove()">Close</button></div>';
+      btn.textContent = originalText;
+      overlay.appendChild(content);
+      document.body.appendChild(overlay);
+    } catch (err) {
+      console.error(err);
+      alert("Could not load project details.");
+      btn.textContent = originalText;
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -325,12 +371,30 @@ function buildAssistant() {
 }
 
 async function streamUmai(message, history, bubble, body) {
-  // Hardcoded fallback logic as requested by user (instant replies)
+  try {
+    // Try backend API first
+    const res = await fetch('/api/umai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history: history || [] })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      bubble.classList.remove("typing");
+      bubble.innerHTML = formatBotMessage(data.reply || data.message || "I'm here to help!");
+      body.scrollTop = body.scrollHeight;
+      return data.reply || data.message;
+    }
+  } catch (e) {
+    // Backend unavailable, fall through to hardcoded
+  }
+
+  // Hardcoded fallback
   return new Promise(function(resolve) {
     setTimeout(function() {
       var lowerMsg = message.toLowerCase();
       var reply = "I am Umai, the YUGM AI assistant. I can help you understand our data operations, workflows, and annotation services. How can I assist you today?";
-      
+
       if (lowerMsg.includes("pricing") || lowerMsg.includes("cost")) {
         reply = "Our pricing scales based on the volume and complexity of the dataset. For custom quotes, please reach out via our **Contact page**.";
       } else if (lowerMsg.includes("register") || lowerMsg.includes("join") || lowerMsg.includes("freelancer")) {
@@ -338,7 +402,7 @@ async function streamUmai(message, history, bubble, body) {
       } else if (lowerMsg.includes("service") || lowerMsg.includes("workflow")) {
         reply = "We offer four core services:\n- **Data Recording**\n- **Annotation**\n- **Transcription**\n- **Quality Assurance**\n\nWhich one are you interested in?";
       }
-      
+
       bubble.classList.remove("typing");
       bubble.innerHTML = formatBotMessage(reply);
       body.scrollTop = body.scrollHeight;
@@ -502,71 +566,6 @@ function initCountUp() {
 
   elements.forEach(el => observer.observe(el));
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  initCountUp();
-
-  // Scroll Reveal Observer
-  var reveals = document.querySelectorAll("[data-reveal]");
-  if (reveals.length) {
-    var revObs = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("visible");
-          revObs.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.1 });
-    reveals.forEach((r) => revObs.observe(r));
-  }
-
-  // Spotlight cards
-  var cards = document.querySelectorAll(".card, .ops-card, .service-card, .process-card, .project-card");
-  cards.forEach((card) => {
-    card.addEventListener("mousemove", (e) => {
-      var rect = card.getBoundingClientRect();
-      var x = e.clientX - rect.left;
-      var y = e.clientY - rect.top;
-      card.style.setProperty("--mouse-x", x + "px");
-      card.style.setProperty("--mouse-y", y + "px");
-    });
-  });
-
-  // Global listener for "Read More" links on project cards (Home page)
-  document.body.addEventListener("click", async function (e) {
-    var btn = e.target.closest("[data-read-more]");
-    if (!btn) return;
-    
-    var originalText = btn.textContent;
-    btn.textContent = "Loading...";
-
-    var projectId = btn.dataset.readMore;
-    try {
-      if (!window._firestoreModule || !window._db) throw new Error("Firestore not initialized");
-      var fs = window._firestoreModule;
-      var db = window._db;
-      
-      var pDoc = await fs.getDoc(fs.doc(db, "projects", projectId));
-      if (!pDoc.exists()) throw new Error("Not found");
-      var p = pDoc.data();
-      
-      var overlay = document.createElement("div");
-      overlay.className = "full-screen-modal-overlay";
-      var content = document.createElement("div");
-      content.className = "full-screen-modal-content";
-      content.innerHTML = '<h2>' + escapeHtml(p.name || "Details") + '</h2>' +
-        '<div style="white-space:pre-wrap; margin-top:20px; line-height:1.6;">' + escapeHtml(p.description || "") + '</div>' +
-        '<div style="margin-top:30px; text-align:right;"><button class="btn btn-outline" onclick="this.closest(\'.full-screen-modal-overlay\').remove()">Close</button></div>';
-      btn.textContent = originalText;
-      overlay.appendChild(content);
-      document.body.appendChild(overlay);
-    } catch (err) {
-      console.error(err);
-      alert("Could not load project details.");
-      btn.textContent = originalText;
-    }
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Follow-Us Announcement Banner — shows once every 24 hours

@@ -29,6 +29,8 @@
     else if (field.type === "select") {
       var options = Array.isArray(field.options) ? field.options : [];
       input = '<select id="' + id + '" name="custom-' + index + '"' + required + '><option value="">Select an option</option>' + options.map(function (option) { return '<option value="' + esc(option) + '">' + esc(option) + '</option>'; }).join("") + '</select>';
+    } else if (field.type === "file-upload") {
+      input = '<input id="' + id + '" name="custom-' + index + '" type="file"' + required + '>';
     } else input = '<input id="' + id + '" name="custom-' + index + '" type="' + (field.type === "email" ? "email" : "text") + '"' + required + '>';
     return '<div class="field"><label for="' + id + '">' + label + (field.required ? ' <span aria-hidden="true">*</span>' : '') + '</label>' + input + '</div>';
   }
@@ -70,7 +72,26 @@
     btn.textContent = "Submitting…";
     try {
       var answers = { "Why are you a good fit?": form.elements.note.value.trim() };
-      (currentJob.formFields || []).filter(function (field) { return field && field.label; }).forEach(function (field, index) { answers[field.label] = (form.elements['custom-' + index] || {}).value || ""; });
+      
+      var customFields = (currentJob.formFields || []).filter(function (field) { return field && field.label; });
+      for (var index = 0; index < customFields.length; index++) {
+        var field = customFields[index];
+        if (field.type === "file-upload") {
+          var input = form.elements['custom-' + index];
+          if (input && input.files.length > 0) {
+            var file = input.files[0];
+            var formData = new FormData();
+            formData.append("file", file);
+            var headers = typeof window.authHeader === "function" ? await window.authHeader() : {};
+            var res = await fetch("/api/drive/upload", { method: "POST", body: formData, headers: headers });
+            var data = await res.json();
+            if (data.url) answers[field.label] = data.url;
+          }
+        } else {
+          answers[field.label] = (form.elements['custom-' + index] || {}).value || "";
+        }
+      }
+
       await fs.addDoc(fs.collection(getDb(), "participations"), { userId: currentUser.uid, projectId: jobId, step: 1, status: "applied", iteration: currentJob.iteration || 1, applicationNote: form.elements.note.value.trim(), customAnswers: answers, createdAt: fs.serverTimestamp() });
       form.innerHTML = '<div class="application-auth-note">Application sent. You can now follow your onboarding and work progress in <a href="portal.html">My Portal</a>.</div><a class="btn btn-primary" href="portal.html">Go to My Portal</a>';
       setStatus("Your application has been saved.");
