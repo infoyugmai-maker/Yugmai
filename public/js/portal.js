@@ -1177,10 +1177,13 @@ function wireStepActions(projectId, partId, step, user, body, project) {
       var notes = body.querySelector("#submit-notes") ? body.querySelector("#submit-notes").value.trim() : "";
       uploadBtn.disabled = true;
       var originalText = uploadBtn.textContent;
-      uploadBtn.innerHTML = '<span style="display:inline-block; animation: pulse 1.5s infinite;">Uploading...</span>';
+        uploadBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> <span style="vertical-align: middle;">Uploading file... Please wait</span>';
 
       try {
         var file = fileInput.files[0];
+        if (file.size > 100 * 1024 * 1024) {
+          throw new Error("File is too large! Maximum allowed size is 100 MB per file.");
+        }
         var formData = new FormData();
         formData.append("file", file);
         formData.append("projectName", project.name || "General");
@@ -1261,6 +1264,9 @@ function wireStepActions(projectId, partId, step, user, body, project) {
       invoiceBtn.textContent = "Uploading...";
       try {
         var file = fileInput.files[0];
+        if (file.size > 100 * 1024 * 1024) {
+          throw new Error("File is too large! Maximum allowed size is 100 MB per file.");
+        }
         var formData = new FormData();
         formData.append("file", file);
         formData.append("projectName", project.name || "General");
