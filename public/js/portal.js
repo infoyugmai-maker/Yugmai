@@ -1176,14 +1176,23 @@ function wireStepActions(projectId, partId, step, user, body, project) {
       }
       var notes = body.querySelector("#submit-notes") ? body.querySelector("#submit-notes").value.trim() : "";
       uploadBtn.disabled = true;
-      var originalText = uploadBtn.textContent;
-        uploadBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> <span style="vertical-align: middle;">Uploading file... Please wait</span>';
+      var uploadContainer = uploadBtn.parentElement;
+      var progressBar = document.createElement("div");
+      progressBar.style.cssText = "height: 4px; background: var(--border); border-radius: 2px; margin-top: 12px; overflow: hidden; display: none;";
+      var progressFill = document.createElement("div");
+      progressFill.style.cssText = "height: 100%; width: 0%; background: var(--green); transition: width 0.2s ease;";
+      progressBar.appendChild(progressFill);
+      uploadContainer.appendChild(progressBar);
+
+      uploadBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> <span style="vertical-align: middle;">Uploading file... Please wait</span>';
 
       try {
         var file = fileInput.files[0];
-        if (file.size > 100 * 1024 * 1024) {
-          throw new Error("File is too large! Maximum allowed size is 100 MB per file.");
+        if (file.size > 600 * 1024 * 1024) {
+          throw new Error("File is too large! Maximum allowed size is 600 MB per file.");
         }
+        
+        progressBar.style.display = "block";
         var formData = new FormData();
         formData.append("file", file);
         formData.append("projectName", project.name || "General");
@@ -1199,13 +1208,30 @@ function wireStepActions(projectId, partId, step, user, body, project) {
         var currentUser = getAuth().currentUser;
         var token = await currentUser.getIdToken();
 
-        var res = await fetch("/api/drive/upload", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + token },
-          body: formData
+        var result = await new Promise((resolve, reject) => {
+          var xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/drive/upload", true);
+          xhr.setRequestHeader("Authorization", "Bearer " + token);
+          
+          xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+              var percent = (e.loaded / e.total) * 100;
+              progressFill.style.width = percent + "%";
+            }
+          };
+          
+          xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); } 
+              catch(err) { reject(new Error("Invalid response from server")); }
+            } else {
+              reject(new Error("Upload failed with status: " + xhr.status));
+            }
+          };
+          xhr.onerror = function() { reject(new Error("Network error occurred during upload")); };
+          xhr.send(formData);
         });
 
-        var result = await res.json();
         if (result.error || !result.id) throw new Error(result.error || "Upload failed");
 
         await db.collection("submissions").add({
@@ -1217,7 +1243,7 @@ function wireStepActions(projectId, partId, step, user, body, project) {
         // Reset form for another file
         fileInput.value = "";
         if (body.querySelector("#submit-notes")) body.querySelector("#submit-notes").value = "";
-        uploadBtn.disabled = false;
+        uploadBtn.disabled = false; if (progressBar) progressBar.remove();
         uploadBtn.textContent = originalText;
         uiAlert("File uploaded successfully! It is now listed below.");
         
@@ -1225,7 +1251,7 @@ function wireStepActions(projectId, partId, step, user, body, project) {
         loadSubmissionHistory(projectId, user.uid, body);
       } catch (err) {
         uiAlert("Upload Error: " + err.message);
-        uploadBtn.disabled = false;
+        uploadBtn.disabled = false; if (progressBar) progressBar.remove();
         uploadBtn.textContent = originalText;
       }
     });
@@ -1264,8 +1290,8 @@ function wireStepActions(projectId, partId, step, user, body, project) {
       invoiceBtn.textContent = "Uploading...";
       try {
         var file = fileInput.files[0];
-        if (file.size > 100 * 1024 * 1024) {
-          throw new Error("File is too large! Maximum allowed size is 100 MB per file.");
+        if (file.size > 600 * 1024 * 1024) {
+          throw new Error("File is too large! Maximum allowed size is 600 MB per file.");
         }
         var formData = new FormData();
         formData.append("file", file);

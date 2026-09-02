@@ -275,7 +275,7 @@ app.post("/api/upload", requireAuth, async (req, res) => {
 
 const uploadMulter = multer({ 
   dest: path.resolve(__dirname, 'uploads/'),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB limit
+  limits: { fileSize: 600 * 1024 * 1024 } // 600 MB limit
 });
 
 // ---------------------------------------------------------------------------
